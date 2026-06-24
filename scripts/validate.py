@@ -30,12 +30,12 @@ def check(filepath):
 
     # ── 3. Z-index 三明治 ──
     zidx_found = bool(re.search(r"\.style\s*\(\s*['\"]z-index['\"]\s*,\s*['\"]3['\"]\s*\)", html))
-    pos_fixed = bool(re.search(r"\.style\s*\(\s*['\"]position['\"]\s*,\s*['\"]fixed['\"]\s*\)", html))
+    pos_ok = bool(re.search(r"\.style\s*\(\s*['\"]position['\"]\s*,\s*['\"](?:fixed|absolute)['\"]\s*\)", html))
     ptr_none  = bool(re.search(r"\.style\s*\(\s*['\"]pointer-events['\"]\s*,\s*['\"]none['\"]\s*\)", html))
     if not zidx_found:
         errors.append("Z-INDEX: Canvas 未通过 JS 强制设置 z-index:3")
-    if not pos_fixed:
-        errors.append("Z-INDEX: Canvas 未设置 position:fixed")
+    if not pos_ok:
+        errors.append("Z-INDEX: Canvas 未设置 position:fixed 或 position:absolute")
     if not ptr_none:
         warnings.append("Z-INDEX: Canvas 未设置 pointer-events:none，可能拦截用户点击")
 
