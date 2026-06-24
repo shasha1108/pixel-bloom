@@ -44,8 +44,9 @@ def check(filepath):
     if 'pixelDensity(1)' not in html and "noSmooth()" not in html:
         errors.append("P5: 缺少 pixelDensity(1) 或 noSmooth()（至少需要一个保持像素锐利）")
     # pixelDensity(1) 在固定画布上可选；noSmooth() 在固定画布上单独生效
-    if 'clear()' not in html or re.search(r'\.background\(', html):
-        errors.append("P5: 应使用 clear() 而非 background()，否则盖住 CSS 底色")
+    if 'clear()' not in html and not re.search(r'fill\([^)]+,\s*\d+\s*\)\s*;\s*rect\(0,\s*0', html):
+        if re.search(r'\.background\(', html):
+            errors.append("P5: 应使用 clear()（或 Ganzfeld 模式的半透明 fill+rect 拖影），而非 background()")
     if 'windowResized' in html and 'pixelDensity(1)' not in html.split('windowResized')[1] if 'windowResized' in html else False:
         warnings.append("P5: windowResized 中未重复设置 pixelDensity(1)")
 
