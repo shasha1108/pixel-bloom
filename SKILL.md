@@ -39,11 +39,13 @@ description: >
 
 打开 `references/pixel-aero.md`，根据生命体类型选择：
 
-- **有自主运动**（鱼/宠物）→ 完整 FSM（Wander / Chase / Flee），Perlin noise 驱动
-- **无自主运动**（植物/珊瑚）→ React-only 模式（交互触发单次反馈动画），无 Wander 状态
-- **至少一处视觉设计呼应"核心隐喻"**（如浇水 → 多肉颜色从灰绿变鲜绿）
+- **有自主运动**（鱼/宠物）→ 完整 FSM + 表情系统 + 音效反馈
+- **无自主运动**（植物/珊瑚）→ React-only 模式 + 生长动画 + 音效反馈
+- **角色深度要求**：生命体必须有表情/情绪变化（颜文字/颜色 lerp/肢体变形至少一种），不同状态下视觉不同
+- **音效系统**：Web Audio API 合成至少一种交互音效（pop/chime/drone），首次用户交互时初始化 AudioContext
+- **核心隐喻驱动 ≥2 个机制**：如"投食=关怀"→追食动画+表情变化+音效+生长
 
-选择程序化生成模型（A/B/C/D），**不强制至少两种**——按场景需要，一种也够。
+选择程序化生成模型（A/B/C/D），按场景需要选，一种也够。
 
 ### 3. 前端架构
 
@@ -69,13 +71,15 @@ description: >
 
 交付前逐条确认：
 
-1. 像素生命体有行为变化（FSM 或 React），非静止贴图
-2. 交互有视觉反馈，非无声操作
-3. Canvas z-index=3，不被毛玻璃模糊
-4. 配色来自预设数组，无裸 random RGB
-5. Canvas 有 `filter: drop-shadow()` 景深
-6. `pixelDensity(1)` + `noSmooth()` 已设置
-7. 移动端 `user-scalable=no`
-8. HTML 顶部有完整元数据注释头（Title/Summary/Tech/Keywords/Render/Audio/Touch/Dependencies/Repo）
-9. 文件已输出到 `/Users/zhangwensha/Documents/h5/`
-10. 核心隐喻在视觉中至少有 1 处可辨识的呼应点
+1. 生命体有 ≥3 个状态的 FSM，或 React-only 模式有 ≥2 种不同反馈
+2. 生命体有表情/情绪变化系统（像素颜文字/颜色变化/形状变化至少一种），随状态切换
+3. 生命体有平滑动画（呼吸缩放/stretch/lerp 颜色过渡至少一种），非刚性平移
+4. 交互有视觉 + 听觉双重反馈——至少包含一种 Web Audio 合成音效（pop/chime/drone）
+5. Canvas z-index=3，不被毛玻璃模糊
+6. 配色来自预设数组，无裸 random RGB
+7. Canvas 有 `filter: drop-shadow()` 景深
+8. `pixelDensity(1)` + `noSmooth()` 已设置
+9. 移动端 `user-scalable=no`
+10. HTML 顶部有完整元数据注释头（Title/Summary/Tech/Keywords/Render/Audio/Touch/Dependencies/Repo）
+11. 文件已输出到 `/Users/zhangwensha/Documents/h5/`
+12. 核心隐喻驱动 ≥2 个机制（如"投食=关怀"→追食+表情变化+音效+长大）
