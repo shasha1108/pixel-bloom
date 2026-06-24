@@ -61,29 +61,38 @@ for(let dy=0;dy>-h;dy-=PX){
 
 ---
 
-## 三、运动
+## 三、运动（仿生数学三法则）
 
-### 像素呼吸：方向符号推，禁止 scale()
+禁止线性赋值和 `random()` 抖动。所有运动必须有"生命感"。
+
+### 法则一：生命呼吸（`sin` / `cos`）
+任何物体都不允许绝对静止。哪怕停在原地，也必须有正弦波微动。
 ```javascript
-// 边缘块沿自身方向外推 1PX
-if(breathe>.5){ox=(b.dx>0?1:-1)*PX;oy=(b.dy>0?1:-1)*PX}
+scale(1+sin(frameCount*0.05)*0.03); // 心跳级呼吸
 ```
-蘑菇/荧光体等不适合推位置 → 颜色明暗交替：`alpha=map(breathe,-1,1,150,255)`
+**像素呼吸：方向符号推，禁止 scale()。** 边缘块沿自身方向外推 1PX；蘑菇/荧光体用颜色明暗交替。
+
+### 法则二：灵魂漫游（Perlin Noise）
+禁止 `random()` 做运动——产生苍蝇乱撞的机械感。`noise()` 产生连续伪随机，模拟流体涡流、风的轨迹、生物探索步态。
+```javascript
+c.vx+=(noise(c.x*.01,frameCount*.005)-.5)*.1; // 平滑不可预测
+```
+
+### 法则三：延迟满足（Lerp / 缓动）
+物体绝不瞬间到达目标。`lerp()` 的阻尼跟随产生"重量感"和"果冻感"。
+```javascript
+x=lerp(x,target,.1); // 0.08=悬浮, 0.15=跟手
+```
 
 ### FSM 状态机
 - 有自主运动（宠物/鱼）→ Wander/Chase/Flee 三态 + Perlin noise 驱动
 - 无自主运动（植物/摆件）→ React-only（交互触发单次反馈）
 
-### Perlin 粒子
+### Perlin 粒子 + 双圈发光
 ```javascript
 let ang=noise(s.x*.01,s.y*.01,frameCount*.02)*TWO_PI*2;
-s.vx+=cos(ang)*.1;s.vy+=sin(ang)*.1;
-s.vx*=.95;s.vy*=.95;  // 阻尼
-s.vy-=.02;             // 微重力
-```
-
-### 双圈发光渲染
-```javascript
+s.vx+=cos(ang)*.1;s.vy+=sin(ang)*.1;s.vx*=.95;s.vy*=.95;s.vy-=.02;
+// 渲染
 blendMode(SCREEN);
 fill(100,200,255,a*.3);circle(x,y,sz*4);   // 外光晕
 fill(255,255,255,a);   circle(x,y,sz*1.5); // 内亮点
@@ -184,3 +193,53 @@ c.style('z-index', '2');
 - **浏览器实测** → 点一下看有没有反应，树是不是正的，猫是不是在树后面
 
 **铁律：三步全绿才交付。跳任一步 = 白屏/倒树/无响应。**
+
+---
+
+## 九、听觉心理学（Web Audio 疗愈频段）
+
+音效不是"配个响声"——是触发副交感神经放松的疗愈手段。
+
+### 数字疗愈频段
+基频固定使用以下频率（声学疗愈验证）：
+- **174Hz** — 缓解压力，身体放松
+- **432Hz** — 宇宙疗愈频率，心轮共鸣
+- **528Hz** — DNA 修复频率，转化
+
+波形用**三角波**（`type='triangle'`）或**正弦波**（`type='sine'`），禁止锯齿波（焦虑感）。
+
+### ADSR 声音包络
+所有交互音效必须配置 Attack-Decay-Sustain-Release，禁止直上直下：
+```javascript
+// 颂钵/风铃音色：快起慢落
+g.gain.setValueAtTime(0, t);                    // Attack: 静音起步
+g.gain.linearRampToValueAtTime(0.15, t+.03);    // Decay: 极快触发峰值
+g.gain.exponentialRampToValueAtTime(0.001, t+2.5); // Release: 2-3秒长尾泛音
+```
+**物理隐喻：** 短 Attack = 敲击瞬间。长 Release = 余音绕梁。模拟水晶颂钵或玻璃风铃的残响。
+
+### 底噪与环境音
+- 治愈底噪：174Hz 三角波 → 低通滤波到 300Hz 以下 → gain ≤ 0.05
+- 雨声/海浪：白噪 buffer → 带通滤波 → 循环播放
+- 风铃散音：Cmaj7 和弦（C4-E4-G4-B4），随机触发 2-3 音
+
+---
+
+## 十、架构级 Prompt 模板
+
+以下压缩版可复制到任何模型，跳过解释直接产出高质量代码：
+
+```
+角色：顶级生成艺术家 + 图形学前端专家 + 交互声效设计师。
+用 p5.js + 原生 HTML/CSS 写一个 [场景] 的 H5。严守以下底线：
+
+1. 运动：禁用 random() 和线性运动。用 Perlin noise() 做有机运动，
+   sin() 做呼吸，lerp() 做阻尼跟随。
+2. 层级：毛玻璃绝不遮挡 Canvas。三层分离：底板模糊 → Canvas 锐利 →
+   顶层 ::after 斜切渐变高光（模拟菲涅尔反射）。
+3. 交互：禁用 p5.js 内置鼠标事件。原生 pointerdown + 300ms 时间戳
+   隔离单击/双击。
+4. 音效：Web Audio API。174Hz/432Hz 三角波底噪，ADSR 包络 2-3秒
+   长尾泛音模拟风铃/颂钵。
+5. 像素：noSmooth()。运动用浮点，translate 时 round() 取整防发虚。
+```
