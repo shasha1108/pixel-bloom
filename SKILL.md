@@ -13,7 +13,11 @@ description: >
 # Pixel × Frutiger Aero
 
 生成 p5.js 像素渲染 + Frutiger Aero 毛玻璃美学的独立 H5 页面。
-**执行前必须阅读 `references/pixel-aero.md`**（4 种生成模型、FSM、Z-index 三明治、防坑清单）。
+**执行前必须阅读以下 references：**
+- `references/pixel-aero.md` — 4 种生成模型、FSM、防坑清单
+- `references/fixed-canvas.md` — **固定画布架构**（像素艺术唯一正确做法）
+- `references/aero-glass.md` — 穹顶、呼吸、水珠、孢子 4 大高级技法
+- `references/audio-engine.md` — Web Audio 音效武器库
 
 ## 边界规则
 
