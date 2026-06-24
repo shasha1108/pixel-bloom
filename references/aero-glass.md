@@ -9,22 +9,32 @@
 **正解：** 玻璃罩顶部必须是纯数学的半球体。
 
 ### 半球穹顶 + 圆柱体架构
+
+**致命陷阱：** `border-radius: 50%` 在宽高不等的元素上，X 半径用宽度的一半、Y 半径用高度的一半，必然产生椭圆。宽 72% 高 52% 的元素 → 上半圆 X=36% Y=26% → 鸭蛋形。
+
+**正解：** 拆分为 `.dome-top`（正方形，高=宽/2）+ `.dome-wall`（直壁）。
+
 ```css
-.dome-glass {
-  border-radius: 50% 50% 0 0 / 50% 50% 0 0; /* 完美半球顶 */
+/* 穹顶：正方形截半 → 完美正半圆 */
+.dome-top {
+  width: 72%; height: 36%;         /* height = width/2 ← 关键 */
+  border-radius: 999px 999px 0 0;  /* 正方形上 999px = 完美半圆 */
+  border: 2.5px solid rgba(255,255,255,.85);
+  border-bottom: none;
   box-shadow: inset 0 0 40px rgba(255,255,255,.45),
-              inset -8px 0 20px rgba(255,255,255,.15),
-              inset 8px 0 20px rgba(255,255,255,.12);
+              inset -8px 0 20px rgba(255,255,255,.15);
 }
+/* 直圆柱壁 */
 .dome-wall {
-  /* 直圆柱壁 — 无 border-radius */
+  top: 46%; left: 14%; width: 72%; height: 24%;
   border-left: 2.5px solid rgba(255,255,255,.7);
   border-right: 2.5px solid rgba(255,255,255,.7);
+  border-bottom: 2px solid rgba(255,255,255,.4);
 }
 ```
 
 **三条铁律：**
-- 顶部 `border-radius` 的 X 和 Y 必须相等（50%），产生纯圆顶
+- 穹顶 `height` 必须恰好等于 `width / 2`，缺一像素都不行
 - 必须有木质/金属底座托住生态——无底座=漂浮感
 - 玻璃内侧必须有白色 `inset` 内发光（厚度感的唯一来源）
 
