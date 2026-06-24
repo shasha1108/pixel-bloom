@@ -37,12 +37,16 @@ description: >
 
 ### 2. 技术选型
 
-打开 `references/pixel-aero.md`，根据生命体类型选择：
+打开 `references/pixel-aero.md`（技法配方）和 healing-space 的 `references/audio-engine.md`（音效武器库），根据生命体类型选择：
 
 - **有自主运动**（鱼/宠物）→ 完整 FSM + 表情系统 + 音效反馈
 - **无自主运动**（植物/珊瑚）→ React-only 模式 + 生长动画 + 音效反馈
-- **角色深度要求**：生命体必须有表情/情绪变化（颜文字/颜色 lerp/肢体变形至少一种），不同状态下视觉不同
-- **音效系统**：Web Audio API 合成至少一种交互音效（pop/chime/drone），首次用户交互时初始化 AudioContext
+- **角色深度**：生命体必须有表情/情绪变化（颜文字/颜色 lerp/肢体变形至少一种），不同状态下视觉不同
+- **音效系统**（遵循 audio-engine.md 的铁律）：
+  - 所有声音用 Web Audio API 纯代码合成，零音频文件
+  - AudioContext 在首次用户交互时初始化并 `resume()`
+  - `masterGain` 起始值为 0，通过 `linearRampToValueAtTime` 淡入，禁止直接设满音量
+  - 至少包含一种交互反馈音效（pop/chime/drone），按场景情绪选配方
 - **核心隐喻驱动 ≥2 个机制**：如"投食=关怀"→追食动画+表情变化+音效+生长
 
 选择程序化生成模型（A/B/C/D），按场景需要选，一种也够。
@@ -74,7 +78,7 @@ description: >
 1. 生命体有 ≥3 个状态的 FSM，或 React-only 模式有 ≥2 种不同反馈
 2. 生命体有表情/情绪变化系统（像素颜文字/颜色变化/形状变化至少一种），随状态切换
 3. 生命体有平滑动画（呼吸缩放/stretch/lerp 颜色过渡至少一种），非刚性平移
-4. 交互有视觉 + 听觉双重反馈——至少包含一种 Web Audio 合成音效（pop/chime/drone）
+4. 交互有视觉 + 听觉双重反馈——Web Audio 纯代码合成，零音频文件，masterGain 淡入不爆音
 5. Canvas z-index=3，不被毛玻璃模糊
 6. 配色来自预设数组，无裸 random RGB
 7. Canvas 有 `filter: drop-shadow()` 景深
