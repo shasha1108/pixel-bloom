@@ -57,7 +57,7 @@ description: >
 
 ### 3. 技术选型
 
-打开 `references/pixel-aero.md`（技法配方）和 healing-space 的 `references/audio-engine.md`（音效武器库），根据生命体类型选择：
+打开 `references/pixel-aero.md`（技法配方）和 `references/audio-engine.md`（音效武器库），根据生命体类型选择：
 
 - **有自主运动**（鱼/宠物）→ 完整 FSM + 表情系统 + 音效反馈
 - **无自主运动**（植物/珊瑚）→ React-only 模式 + 生长动画 + 音效反馈
