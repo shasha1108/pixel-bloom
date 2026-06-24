@@ -276,3 +276,50 @@ font-family:"Segoe UI","Frutiger","Trebuchet MS","PingFang SC",sans-serif
    长尾泛音模拟风铃/颂钵。
 5. 像素：noSmooth()。运动用浮点，translate 时 round() 取整防发虚。
 ```
+
+---
+
+## 十二、Ganzfeld × Turrell 光空间模式
+
+当用户提到"沉浸""冥想""光浴""漂浮感"时启用。本质上是用代码模拟**感官剥夺 + 光场锚定**。
+
+### 背景：无边界光场
+不用天空渐变（有方向暗示）。用 `radial-gradient` 消除地平线和深度参照。
+```css
+/* Ganzfeld 光场：20-30s 极缓慢色相呼吸 */
+@keyframes fieldBreath {
+  0%,100% { background: radial-gradient(ellipse, #2a1a3a 0%, #0a0a1a 100%); }
+  50%     { background: radial-gradient(ellipse, #3a1a2a 0%, #0a0a1a 100%); }
+}
+body { animation: fieldBreath 25s ease-in-out infinite; }
+```
+
+### Turrell 调色盘
+- 蓝紫→深黑：`#2a1a3a` `#0a0a1a`（深渊）
+- 日落橙→暖粉：`#3a2018` `#5a2a28`（光浴）
+- 荧光粉→紫红：`#4a1a3a` `#2a0a1a`（霓虹）
+
+### 运动拖影（Trail Effect）
+不全清画布 → 像素物体留下梦幻残影，模拟感官剥夺中的视觉残留。
+```javascript
+// 替代 clear()：半透明背景叠加，旧帧缓慢消隐
+fill(10, 8, 20, 12); rect(0, 0, width, height);
+```
+
+### 双耳节拍（Binaural Beats）
+左右耳频率差产生 Theta 波（4Hz）共振，强制深度放松。
+```javascript
+// 左 432Hz / 右 436Hz → 4Hz Theta 波
+let left = ac.createOscillator(); left.frequency.value = 432;
+let right = ac.createOscillator(); right.frequency.value = 436;
+let merger = ac.createChannelMerger(2);
+left.connect(merger, 0, 0); right.connect(merger, 0, 1);
+merger.connect(ac.destination);
+```
+配合粉红噪音（Pink Noise）底噪，消除环境干扰。
+
+### 交互即光变（Light Shift）
+长按不触发生长/投食，而是触发**全局光场色相缓慢漂移**——从深蓝渐变到暖粉。用户不是在操作物体，是在进行"数字光浴"。
+
+### 容器即透镜（Skyspace Lens）
+在此模式下，玻璃容器的高光不反射白光——反射**背景光场的颜色**。容器的 `::after` 伪元素渐变色跟随光场色相。容器内部比外部光场暗 10-20%，产生"透过玻璃看到另一个光维度"的视错觉。
