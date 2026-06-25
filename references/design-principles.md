@@ -21,15 +21,17 @@ p5.js 会覆盖 JS 设置的 canvas style。固定画布场景用 CSS `!importan
 canvas{position:absolute!important;z-index:7!important;pointer-events:none}
 ```
 
-### 玻璃容器三层分离（三明治架构锁死）
+### 玻璃容器三层分离（全场景统一 Z-index，不得更改）
+
 ```
-z=1: 环境极光光斑 (CSS 径向渐变, fixed, 缓慢漂浮)
-z=2: 容器后背板 (毛玻璃 backdrop-filter:blur, 仅此层有模糊)
-z=3: Canvas 像素渲染层 (position:fixed, drop-shadow 内部投影)
-z=4: 容器前玻璃壳 (::after 曲面高光, 无模糊, pointer-events:none)
-z=10: 交互拦截层 (#interact-layer, 原生 pointerdown 事件)
+z=1  环境极光光斑（CSS 径向渐变，fixed，缓慢漂浮）
+z=2  毛玻璃底板（唯一有 backdrop-filter:blur 的层）
+z=3  Canvas 像素渲染层（JS 强控：c.style('z-index','3') + drop-shadow 内部投影）
+z=4  玻璃外壳（::after 菲涅尔高光，绝对不加 blur，pointer-events:none）
+z=5  交互拦截层（#interact-layer，原生 pointerdown 事件）
 ```
-**铁律：blur 只在 z=2 底板层，永远不在 canvas 上层或玻璃壳层。**
+
+**铁律：blur 只在 z=2 底板层，永远不在 canvas 上层或玻璃壳层。** 无玻璃的开放场景中 z=2 和 z=4 不存在，其余层级保持不变。
 
 容器尺寸固定时，穹顶/球体的 border-radius 用精确数学值：
 - 穹顶 `border-radius: <玻璃宽度的一半>px <玻璃宽度的一半>px 0 0`

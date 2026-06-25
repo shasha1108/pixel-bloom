@@ -45,24 +45,6 @@ description: >
 
 ---
 
-## 架构铁律（不读 references 也必须知道）
-
-**Z-index 标准（全场景统一，不得更改）：**
-```
-z=1  环境极光光斑（CSS 径向渐变，缓慢漂浮）
-z=2  毛玻璃底板（唯一有 backdrop-filter:blur 的层）
-z=3  Canvas（JS 强控：c.style('z-index','3')）
-z=4  玻璃外壳（::after 菲涅尔高光，绝对不加 blur）
-z=5  交互拦截层（#interact-layer，原生 pointerdown）
-```
-
-**三大必须规避的返工陷阱：**
-1. **p5 Y轴向下** — 角度用 `+sin` 向下、`-sin` 向上，写完含角度的代码后脑中默念一遍
-2. **CSS 选择器覆盖 canvas 属性会失效** — 必须用 `c.style()` 设置，不用 CSS 选择器直接覆盖 canvas
-3. **validate.py 通过 ≠ 页面正常** — 浏览器实测是唯一真相，不可跳过
-
----
-
 ## 生成流程
 
 ### STEP 0 — 视觉调研（新场景必做）
