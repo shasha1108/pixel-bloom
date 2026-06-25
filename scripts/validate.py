@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pixel-aero 静态验证器 — 交付前自动排查低级 bug。
+pixel-bloom 静态验证器 — 交付前自动排查低级 bug。
 用法: python3 scripts/validate.py <生成的.html>
 """
 import re, sys, subprocess, tempfile, os
@@ -101,7 +101,7 @@ def check(filepath):
 
     # ── 报告 ──
     print(f"\n{'='*50}")
-    print(f"pixel-aero 静态验证: {Path(filepath).name}")
+    print(f"pixel-bloom 静态验证: {Path(filepath).name}")
     print(f"{'='*50}")
 
     if errors:

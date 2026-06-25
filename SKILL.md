@@ -1,16 +1,18 @@
 ---
-name: pixel-aero
+name: pixel-bloom
 description: >
-  Use when the user wants to create a pixel-art interactive H5 page with Frutiger Aero glass aesthetics —
-  cyber pets, cyber plants, digital aquariums, pixel terrariums, or any scenario where pixel lifeforms
-  live inside a frosted glass container. Triggers on: "像素养鱼", "赛博宠物", "像素盆栽", "玻璃水族箱",
-  "pixel aquarium", "digital pet", "Frutiger Aero pixel", "pixel art glass", "像素 + 毛玻璃",
-  "玻璃瓶里的像素", or any request combining pixel art with glassmorphism/Frutiger Aero visual style.
+  Use when the user wants to create a pixel-art interactive H5 page where life grows, glows, and blooms —
+  cyber pets, cyber plants, digital aquariums, pixel terrariums, open sky gardens, underwater scenes, or any
+  scenario where pixel lifeforms thrive in a luminous Frutiger Aero world. Triggers on: "像素盆栽",
+  "赛博宠物", "像素养鱼", "像素花园", "像素生态", "像素森林", "pixel garden", "pixel bloom",
+  "digital garden", "pixel life", "pixel creature", "Frutiger Aero pixel", "像素 + 毛玻璃",
+  "像素 + 治愈", or any request combining pixel art with glassmorphism/Frutiger Aero visual style
+  and interactive life.
   Do NOT trigger for: non-pixel art, Three.js 3D scenes, pure CSS animations without canvas,
   or static pixel art without interactivity.
 ---
 
-# Pixel × Frutiger Aero — 像素玻璃生命工坊
+# Pixel Bloom — 像素生命的绽放
 
 ## 角色
 
@@ -28,7 +30,7 @@ description: >
 
 | 情况 | 处理 |
 |------|------|
-| 描述模糊（"做个好玩的"） | 反问：场景类型 / 容器形态 / 核心交互 |
+| 描述模糊（"做个好玩的"） | 反问：场景类型 / 空间形态 / 核心交互 |
 | 生命体 > 10 个 | 告知上限，提议分批分文件生成 |
 | 完整游戏 / 多页 / 非像素风 / Three.js | 说明边界后拒绝 |
 | 含"沉浸 / 冥想 / 光浴 / 漂浮 / 光场" | 进入 **Ganzfeld 模式**（严守 design-principles.md §十二，禁止深色/惊吓/宗教色相漂移） |

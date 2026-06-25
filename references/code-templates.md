@@ -1,8 +1,8 @@
-# Pixel × Frutiger Aero — 像素化的治愈万物
+# Pixel Bloom — 像素化的治愈万物
 
-> 覆盖 p5.js Canvas 像素渲染 + Frutiger Aero 玻璃美学结合的工业级技法配方。
-> 像素画的"颗粒温暖" + Frutiger Aero 的"清透光泽" = 童年玻璃弹珠里的另一个世界。
-> 适用于赛博养宠、赛博养花、电子水族箱等一切"玻璃容器内的像素生命体"场景。
+> 覆盖 p5.js Canvas 像素渲染 + Frutiger Aero 光泽美学结合的工业级技法配方。
+> 像素画的"颗粒温暖" + Frutiger Aero 的"清透光泽" = 生命绽放的光之世界。
+> 适用于赛博养宠、赛博养花、电子水族箱、天空花园、水下世界等一切像素生命绽放的场景。
 
 ## 核心理念
 
@@ -40,7 +40,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Aero</title>
+<title>Pixel Bloom</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }

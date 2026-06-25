@@ -1,9 +1,9 @@
-# CLAUDE.md · pixel-aero
+# CLAUDE.md · pixel-bloom
 
 This file is auto-loaded by Claude Code when this skill repository is opened.
 
 ## WHAT THIS IS
-A Claude Code skill (`pixel-aero`) for generating pixel art + Frutiger Aero glass aesthetic interactive H5 pages. Covers cyber pets, cyber plants, digital aquariums — any pixel lifeform in a frosted glass container.
+A Claude Code skill (`pixel-bloom`) for generating pixel art + Frutiger Aero luminous interactive H5 pages. Covers cyber pets, cyber plants, digital aquariums, open sky gardens, underwater scenes — wherever pixel life grows and glows.
 
 ## HOW THIS SKILL WORKS
 1. User describes a scene (aquarium, terrarium, desktop widget, weather bottle, etc.)

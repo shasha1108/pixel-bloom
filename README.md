@@ -1,22 +1,25 @@
-# Pixel Aero · 像素 × 毛玻璃
+# Pixel Bloom · 像素生命的绽放
 
-> **Claude Code skill for pixel art + Frutiger Aero glass aesthetic H5 pages.**
-> Cyber pets, cyber plants, digital aquariums — any pixel lifeform living inside a frosted glass container.
-> **赛博养宠、赛博养花、电子水族箱——一切玻璃容器内的像素生命体。**
+> **Claude Code skill for pixel art + Frutiger Aero luminous interactive H5 pages.**
+> Cyber pets, cyber plants, digital aquariums, open sky gardens, underwater scenes — wherever pixel life grows and glows.
+> **赛博养宠、赛博养花、电子水族箱、天空花园、水下世界——像素生命绽放光芒的地方。**
 
 ## What this does
 
 Generates complete standalone HTML pages combining:
 - **p5.js pixel rendering** — `pixelDensity(1)` + `noSmooth()`, sharp grid-aligned sprites
-- **Frutiger Aero glass** — CSS 3-layer Z-index sandwich with `backdrop-filter` blur
-- **Procedural flora** — 4 algorithmic models (stack-sway, grid-cull, radial-domain, fan-spread)
-- **AI FSM creatures** — Wander / Chase / Flee state machine with Perlin noise motion
-- **Touch rituals** — tap feed, double-tap knock, custom pointerdown debounce
+- **Frutiger Aero luminous world** — Aero gradients, glassmorphism (optional container), ambient light orbs, Ganzfeld light fields
+- **Procedural flora** — 4 algorithmic models (stack-sway, grid-cull, radial-domain, fan-spread) that grow and sway
+- **AI FSM creatures** — Wander / Chase / Flee state machine with Perlin noise motion — life that moves and reacts
+- **Touch rituals** — tap feed, double-tap interact, drag soothe; custom pointerdown debounce
+- **Web Audio synthesis** — healing bowls, ambient drones, chord pads, binaural beats — all code-synthesized, zero audio files
+
+Three scene modes: closed container (glass terrarium), open viewport (sky/underwater), and Ganzfeld (immersive light field).
 
 ## Quick start
 
 ```
-/pixel-aero 帮我做一个像素盆栽，玻璃花盆里有一棵像素多肉植物
+/pixel-bloom 帮我做一个像素多肉盆栽，阳光透过玻璃洒下来
 ```
 
 ## Related
