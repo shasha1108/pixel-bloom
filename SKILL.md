@@ -1,15 +1,18 @@
 ---
 name: pixel-bloom
 description: >
-  Use when the user wants to create a pixel-art interactive H5 page where life grows, glows, and blooms —
-  cyber pets, cyber plants, digital aquariums, pixel terrariums, open sky gardens, underwater scenes, or any
-  scenario where pixel lifeforms thrive in a luminous Frutiger Aero world. Triggers on: "像素盆栽",
-  "赛博宠物", "像素养鱼", "像素花园", "像素生态", "像素森林", "pixel garden", "pixel bloom",
-  "digital garden", "pixel life", "pixel creature", "Frutiger Aero pixel", "像素 + 毛玻璃",
-  "像素 + 治愈", or any request combining pixel art with glassmorphism/Frutiger Aero visual style
-  and interactive life.
-  Do NOT trigger for: non-pixel art, Three.js 3D scenes, pure CSS animations without canvas,
-  or static pixel art without interactivity.
+  Use whenever the user wants to create any kind of pixel-art interactive H5 page — cyber pets,
+  cyber plants, digital aquariums, pixel terrariums, pixel gardens, pixel forests, underwater scenes,
+  or any scenario where pixel lifeforms grow and glow in a luminous Frutiger Aero world.
+  Trigger on: "像素盆栽", "赛博宠物", "像素养鱼", "像素花园", "像素生态", "像素森林",
+  "pixel garden", "pixel bloom", "digital garden", "pixel life", "pixel creature",
+  "Frutiger Aero pixel", "像素 + 毛玻璃", "像素 + 治愈", "电子宠物", "电子盆栽",
+  "电子鱼缸", "像素小鱼", "像素小花", "像素小草", "做一个宠物", "做一个花园",
+  "养一个电子", "种一个像素" — any request involving pixel art with glassmorphism,
+  Frutiger Aero visual style, or interactive pixel lifeforms, even if the user
+  doesn't explicitly say "pixel".
+  Do NOT trigger for: Three.js 3D scenes (use healing-space), pure CSS animations
+  without canvas, static pixel art without interactivity, or non-pixel vector illustrations.
 ---
 
 # Pixel Bloom — 像素生命的绽放
@@ -20,12 +23,15 @@ description: >
 
 ## 参考文件（分级按需读取）
 
-| 时机 | 文件 | 内容 |
-|------|------|------|
-| 启动时必读 | `references/design-principles.md` | 架构决策 / 仿生运动三法则 / 材质 / 音效 / 排版 / 三大反模式 / Ganzfeld 模式（共 12 节） |
-| STEP 4 生成前必读 | `references/code-templates.md` | 防御性骨架 / 四大程序化模型 A-D / FSM 代码 / 交互模板 / 调色板预设 / 15 项质量清单 |
-| 确认含音效后按需读 | `references/audio-engine.md` | Web Audio 合成配方（零音频文件，含验证版引擎封装）|
-| 需要可复现/可探索时按需读 | `references/seeded-exploration.md` | Seeded randomness / Seed 导航面板 / 参数 slider 面板 / 可分享 URL |
+> **SKILL.md 硬上限：150 行。** 超出即推入 references/。加载纪律："必读"= 读完整文件，"翻阅"= 找到需要的章节即可，不要读完。
+
+| 时机 | 文件 | 内容 | 加载方式 |
+|------|------|------|---------|
+| 启动时必读 | `references/design-principles.md` | 架构决策 / 仿生运动三法则 / 材质 / 音效 / 排版 / 三大反模式 / Ganzfeld 模式（共 12 节） | **必读全部** |
+| STEP 4 生成前必读 | `references/code-templates.md` | 防御性骨架 / 四大程序化模型 A-D / FSM 代码 / 交互模板 / 调色板预设 / 15 项质量清单 | **必读全部（含 15 项清单）** |
+| 确认含音效后按需读 | `references/audio-engine.md` | Web Audio 合成配方（零音频文件，含验证版引擎封装）| **翻阅** — 查配方，不需要读完 |
+| 需要可复现/可探索时按需读 | `references/seeded-exploration.md` | Seeded randomness / Seed 导航面板 / 参数 slider 面板 / 可分享 URL | **翻阅** — 查模式+参数框架，不需要读完 |
+| STEP 2 选色时查阅 | `assets/palettes.json` | 6 套 Frutiger Aero 命名色板 + 基底渐变 + 使用规则 | **翻阅** — 选色板+查色值即可 |
 
 ## 不变项 vs 可变项
 

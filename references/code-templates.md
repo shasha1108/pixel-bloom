@@ -415,6 +415,8 @@ const NEON_PALETTES = [
 
 ## 质量自检清单
 
+> **Assume there are problems. Your job is to find them.** 如果初查找到 0 个问题——你看得不够仔细。交付前运行 `python3 scripts/validate.py <output.html>` 做自动检测，然后逐条确认：
+
 交付前逐条确认：
 
 - [ ] `pixelDensity(1)` + `noSmooth()`，且 `windowResized` 中重复设置

@@ -1,0 +1,43 @@
+{
+  "description": "Frutiger Aero pixel-bloom palettes — each palette has a personality, 4 colors, and a best-use scene.",
+  "base_gradient": "linear-gradient(160deg, #a8e6f8 0%, #cdf0fa 30%, #e4f8f0 65%, #f4fcf9 100%)",
+  "palettes": [
+    {
+      "name": "Aqua Glass",
+      "personality": "清爽、通透、2006年的iPod广告",
+      "colors": ["#7ad0f5", "#b1e6f5", "#dcf4ec", "#ffffff"],
+      "best_for": "像素养鱼、电子水族箱、水下场景"
+    },
+    {
+      "name": "Botanical Dew",
+      "personality": "植物上的晨露、温室的玻璃顶",
+      "colors": ["#a8d8a0", "#c8e8c0", "#e0f0d8", "#f0f8ec"],
+      "best_for": "像素盆栽、像素花园、像素森林"
+    },
+    {
+      "name": "Sunlit Meadow",
+      "personality": "阳光穿过叶片的碎金",
+      "colors": ["#e8d870", "#f0e8a0", "#f8f0c8", "#fcf8e8"],
+      "best_for": "天空花园、开放草地场景"
+    },
+    {
+      "name": "Coral Reef",
+      "personality": "浅海的珊瑚与热带鱼",
+      "colors": ["#f0a0a0", "#f8c0b0", "#fce0d0", "#fff0e8"],
+      "best_for": "热带像素鱼缸、珊瑚礁场景"
+    },
+    {
+      "name": "Lavender Mist",
+      "personality": "薰衣草田的薄雾、安静而温柔",
+      "colors": ["#c0a0d0", "#d8c0e0", "#e8d8f0", "#f4ecf8"],
+      "best_for": "梦幻花园、夜间像素场景"
+    },
+    {
+      "name": "Cyber Mint",
+      "personality": "Y2K科技乐观主义、荧光薄荷",
+      "colors": ["#40e0a0", "#80f0c0", "#b0f8d8", "#e0fcf0"],
+      "best_for": "赛博宠物、科技感像素生命"
+    }
+  ],
+  "usage": "选择一个色板 → colors[0]用作主体、colors[1]用作高光、colors[2-3]用作背景过渡。永不 random RGB——始终从 palettes 数组中索引。"
+}
