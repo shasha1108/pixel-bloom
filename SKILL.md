@@ -25,6 +25,7 @@ description: >
 | 启动时必读 | `references/design-principles.md` | 架构决策 / 仿生运动三法则 / 材质 / 音效 / 排版 / 三大反模式 / Ganzfeld 模式（共 12 节） |
 | STEP 4 生成前必读 | `references/code-templates.md` | 防御性骨架 / 四大程序化模型 A-D / FSM 代码 / 交互模板 / 调色板预设 / 15 项质量清单 |
 | 确认含音效后按需读 | `references/audio-engine.md` | Web Audio 合成配方（零音频文件，含验证版引擎封装）|
+| 需要可复现/可探索时按需读 | `references/seeded-exploration.md` | Seeded randomness / Seed 导航面板 / 参数 slider 面板 / 可分享 URL |
 
 ## 边界规则
 
