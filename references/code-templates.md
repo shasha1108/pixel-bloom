@@ -17,6 +17,23 @@
 底板层 (blur 毛玻璃) < Canvas 像素层 (锐利) < 玻璃壳 (透明高光 + 无 blur)
 ```
 
+**入场序列（分层错开）：**
+
+页面加载时不是所有层同时出现——世界一层一层展开：
+1. 底板层先渲染（毛玻璃 + 渐变底色），0.3s
+2. Canvas 像素层淡入（生命体逐个出现或从边缘涌入），再 0.5s
+3. 玻璃壳 + UI 层最后浮现（光泽 + 引导文字），再 0.4s
+
+```css
+/* 每层独立的淡入动画 */
+.bg-layer    { animation: fadeIn 0.6s ease-out 0s both; }
+.canvas-layer { animation: fadeIn 0.8s ease-out 0.3s both; }
+.glass-layer  { animation: fadeIn 0.6s ease-out 0.8s both; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+```
+
+这个序列制造了"发现"而非"到达"的感觉——用户看到的不只是结果，而是生命在眼前成型。
+
 ---
 
 ## 防御性前端骨架（Safari/iOS 兼容）
