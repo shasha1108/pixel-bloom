@@ -11,6 +11,7 @@ def check_js_syntax(filepath):
     html = Path(filepath).read_text(encoding='utf-8')
     scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, re.DOTALL)
     errors = []
+    warnings = []
     for i, script in enumerate(scripts):
         if not script.strip(): continue
         with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as f:
@@ -21,12 +22,12 @@ def check_js_syntax(filepath):
                 err = r.stderr.strip().split('\n')[0] if r.stderr else 'Unknown syntax error'
                 errors.append(f'JS-SYNTAX: script block #{i+1} 语法错误: {err[:120]}')
         except FileNotFoundError:
-            pass  # node not installed, skip check
+            warnings.append(f'JS-SYNTAX: Node 未安装，跳过 JS 语法检查（script block #{i+1}）')
         except subprocess.TimeoutExpired:
             pass
         finally:
             os.unlink(tmp)
-    return errors
+    return errors, warnings
 
 def check(filepath):
     html = Path(filepath).read_text(encoding='utf-8')
@@ -39,6 +40,8 @@ def check(filepath):
     for field in ['Title:', 'Summary:', 'Tech:', 'Keywords:', 'Render:', 'Audio:', 'Touch:', 'Dependencies:', 'Repo:']:
         if field not in html:
             errors.append(f"META: 注释头缺少 {field}")
+    if 'Concept:' not in html:
+        warnings.append("META: 注释头缺少 Concept:（概念种子命名，建议填写）")
 
     # ── 2. p5.js 像素渲染 ──
     if 'pixelDensity(1)' not in html and "noSmooth()" not in html:
@@ -97,7 +100,9 @@ def check(filepath):
         warnings.append("PERF: 可能存在大循环(>1000次)，检查是否会卡顿")
 
     # ── 0. JS 语法检查 ──
-    errors = check_js_syntax(filepath) + errors
+    js_errors, js_warnings = check_js_syntax(filepath)
+    errors = js_errors + errors
+    warnings = js_warnings + warnings
 
     # ── 报告 ──
     print(f"\n{'='*50}")

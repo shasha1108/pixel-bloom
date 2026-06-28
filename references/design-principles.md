@@ -5,21 +5,14 @@
 ## 一、架构
 
 ### 固定画布
-像素艺术用固定像素尺寸（320×480 或类似），`transform:scale()` 适配屏幕。不传 `windowWidth/windowHeight`。
+像素艺术用固定像素尺寸 + `transform:scale()` 适配屏幕。尺寸由用户选择的画幅比例决定（如 3:4 → 640×960，16:9 → 960×540），不传 `windowWidth/windowHeight`。
 
 ```javascript
-const CW=320,CH=480;
+const CW=640,CH=960;  // 示例：3:4 竖幅，根据所选比例调整
 createCanvas(CW,CH);noSmooth();
 ```
 
 `noSmooth()` 在固定画布上单独生效（不需要 `pixelDensity(1)`，高 DPI 下后者反而可能发虚）。
-
-### CSS Z-index 优于 JS
-p5.js 会覆盖 JS 设置的 canvas style。固定画布场景用 CSS `!important`。
-
-```css
-canvas{position:absolute!important;z-index:7!important;pointer-events:none}
-```
 
 ### 玻璃容器三层分离（全场景统一 Z-index，不得更改）
 
@@ -77,7 +70,7 @@ for(let dy=0;dy>-h;dy-=PX){
 ```javascript
 scale(1+sin(frameCount*0.05)*0.03); // 心跳级呼吸
 ```
-**像素呼吸：方向符号推，禁止 scale()。** 边缘块沿自身方向外推 1PX；蘑菇/荧光体用颜色明暗交替。
+**像素呼吸：方向符号推，禁止 scale()。** 边缘块沿自身方向外推 1PX；蘑菇/荧光体用颜色明暗交替。非像素物体（光斑/气泡）可用 scale() 做呼吸。
 
 ### 法则二：灵魂漫游（Perlin Noise）
 禁止 `random()` 做运动——产生苍蝇乱撞的机械感。`noise()` 产生连续伪随机，模拟流体涡流、风的轨迹、生物探索步态。
@@ -136,16 +129,11 @@ html,body{touch-action:none;user-select:none;-webkit-user-select:none}
 
 ### 单击/双击绝对隔离
 **禁用 p5.js 内置 `mouseClicked`/`doubleClicked`。** 框架的双击必定先触发单击。
-原生 `pointerdown` + 300ms 时间戳隔离：
-```javascript
-let lt=0,to;layer.addEventListener('pointerdown',e=>{
-  let n=Date.now();if(n-lt<300){clearTimeout(to);onDouble();lt=0}else{lt=n;to=setTimeout(onSingle,300)}
-});
-```
-不用 p5 内置双击事件。
+
+> 单击/双击隔离模板见 `code-templates.md §防坑铁律2`，直接复制使用。
 
 ### 反馈要求
-交互至少产生一种视觉反馈（涟漪/粒子/颜色变化/缩放）和一种听觉反馈（Web Audio 合成音效）。
+交互至少产生一种视觉反馈（涟漪/粒子/颜色变化/缩放）。若音效开关为 yes，同时产生听觉反馈（Web Audio 合成音效）。
 
 ---
 
@@ -167,7 +155,7 @@ let lt=0,to;layer.addEventListener('pointerdown',e=>{
 
 ---
 
-## 八、三大系统性反模式（来自 time-tree 的 7 轮返工教训）
+## 八、三大系统性反模式
 
 ### 反模式 1：p5.js Y 轴方向陷阱
 
@@ -200,13 +188,12 @@ c.style('z-index', '2');
 
 ### 反模式 3：校验通过 ≠ 页面正常
 
-三步质检链必须**强制执行**——缺了 JS 语法检查和浏览器实测的 validate.py 是假绿灯。
+两步质检链必须**强制执行**——缺了浏览器实测的 validate.py 是假绿灯。
 
-- **validate.py**（静态模式匹配）→ 查结构缺失，查不了语法错误和渲染 bug
-- **`node --check`**（JS 语法）→ 阻止白屏，每次必跑
+- **validate.py**（静态结构 + JS 语法检查）→ 查结构缺失和语法错误
 - **浏览器实测** → 点一下看有没有反应，树是不是正的，猫是不是在树后面
 
-**铁律：三步全绿才交付。跳任一步 = 白屏/倒树/无响应。**
+**铁律：两步全完成才交付。跳任一步 = 白屏/倒树/无响应。**
 
 ---
 
@@ -260,28 +247,7 @@ font-family:"Segoe UI","Frutiger","Trebuchet MS","PingFang SC",sans-serif
 
 ---
 
-## 十一、架构级 Prompt 模板
-
-以下压缩版可复制到任何模型，跳过解释直接产出高质量代码：
-
-```
-角色：顶级生成艺术家 + 图形学前端专家 + 交互声效设计师。
-用 p5.js + 原生 HTML/CSS 写一个 [场景] 的 H5。严守以下底线：
-
-1. 运动：禁用 random() 和线性运动。用 Perlin noise() 做有机运动，
-   sin() 做呼吸，lerp() 做阻尼跟随。
-2. 层级：毛玻璃绝不遮挡 Canvas。三层分离：底板模糊 → Canvas 锐利 →
-   顶层 ::after 斜切渐变高光（模拟菲涅尔反射）。
-3. 交互：禁用 p5.js 内置鼠标事件。原生 pointerdown + 300ms 时间戳
-   隔离单击/双击。
-4. 音效：Web Audio API。174Hz/432Hz 三角波底噪，ADSR 包络 2-3秒
-   长尾泛音模拟风铃/颂钵。
-5. 像素：noSmooth()。运动用浮点，translate 时 round() 取整防发虚。
-```
-
----
-
-## 十二、Aero-Ganzfeld 光空间模式
+## 十一、Aero-Ganzfeld 光空间模式
 
 当用户提到"沉浸""冥想""光浴""漂浮感"时启用。
 **核心原则：用 Ganzfeld 消除杂乱（静心），用 Aero 色调填补虚无（乐观治愈）。**
@@ -356,3 +322,24 @@ for (let p of flowParticles) {
 - 宁静/冥想：`noise` 频率减半（`* 0.001`），粒子密度降低，近乎静止
 
 粒子层永远是**背景**——不抢夺主体像素生命体的视觉权重，但为场景注入不可见的情绪信息。
+
+---
+
+## 十二、参数设计思考框架
+
+不是"想到什么加什么"——在决定哪些维度可调之前，系统性地问：
+
+| 维度 | 问题 | 像素场景示例 |
+|------|------|------------|
+| **数量** (Quantities) | 多少个？ | 植物数量、花瓣层数、鱼群规模 |
+| **尺度** (Scales) | 多大？多快？ | 生长速度、粒子大小、游动幅度 |
+| **概率** (Probabilities) | 多可能？ | 开花概率、突变概率、颜色变异率 |
+| **比例** (Ratios) | 什么配比？ | 花 vs 叶比例、暖色 vs 冷色占比 |
+| **角度** (Angles) | 什么方向？ | 枝干分叉角、游动偏转角、光源方向 |
+| **阈值** (Thresholds) | 何时行为改变？ | FSM 状态切换时间、粒子衰减触发点 |
+
+**设计原则：**
+- **3-5 个参数是甜蜜点**——少于 3 个不够探索，多于 5 个眼花缭乱
+- **每个参数必须对应一个视觉变化**——用户调 slider 后能立刻看到"变了什么"
+- **默认值 = 最佳体验值**——用户不调参数也应该看到好作品，参数是"锦上添花"而非"修bug"
+- **给每个参数起中文名 + 一句话解释**——用户在面板上看到"植物密度：控制花园里出现多少株植物"而非 `plantDensity: 0.5`

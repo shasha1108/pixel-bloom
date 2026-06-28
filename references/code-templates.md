@@ -1,38 +1,21 @@
-# Pixel Bloom — 像素化的治愈万物
+# Pixel Bloom — 代码模板
 
-> 覆盖 p5.js Canvas 像素渲染 + Frutiger Aero 光泽美学结合的工业级技法配方。
-> 像素画的"颗粒温暖" + Frutiger Aero 的"清透光泽" = 生命绽放的光之世界。
-> 适用于赛博养宠、赛博养花、电子水族箱、天空花园、水下世界等一切像素生命绽放的场景。
+> 防御性骨架 + 程序化模型 + FSM + 交互模板 + 质检清单。直接复制，不要从零发明。
 
-## 核心理念
-
-像素画唤起 NES/GBA 时代的视觉记忆，Frutiger Aero 唤起 2004-2013 的科技乐观主义。两者在同一帧内碰撞：
-- **像素格子** → `pixelDensity(1)` + `noSmooth()` — 故意粗糙的颗粒感
-- **玻璃光泽** → CSS `backdrop-filter: blur()` 毛玻璃 + 半透明高光层
-- **渐变底色** → 天空渐变 `#7ad0f5 → #edfafd` 作为场景底板
-- **材质对比** → 像素实体（锐利 rect）+ 非像素流体（光滑 circle）= 视觉张力
-
-**叠加公式（Z-index 三明治）：**
-```
-底板层 (blur 毛玻璃) < Canvas 像素层 (锐利) < 玻璃壳 (透明高光 + 无 blur)
-```
+**叠加公式**：Z-index 层级规范见 `design-principles.md §一`，不得更改。
 
 **入场序列（分层错开）：**
 
-页面加载时不是所有层同时出现——世界一层一层展开：
 1. 底板层先渲染（毛玻璃 + 渐变底色），0.3s
-2. Canvas 像素层淡入（生命体逐个出现或从边缘涌入），再 0.5s
+2. Canvas 像素层淡入（生命体逐个出现），再 0.5s
 3. 玻璃壳 + UI 层最后浮现（光泽 + 引导文字），再 0.4s
 
 ```css
-/* 每层独立的淡入动画 */
 .bg-layer    { animation: fadeIn 0.6s ease-out 0s both; }
 .canvas-layer { animation: fadeIn 0.8s ease-out 0.3s both; }
 .glass-layer  { animation: fadeIn 0.6s ease-out 0.8s both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 ```
-
-这个序列制造了"发现"而非"到达"的感觉——用户看到的不只是结果，而是生命在眼前成型。
 
 ---
 
@@ -44,6 +27,7 @@
 <!DOCTYPE html>
 <!--
   Title: <场景名称，如"像素水族箱">
+  Concept: <1-2词名字 — 这个作品送给用户的那句话>
   Summary: <主角 + 核心交互，一句话，如"三条像素鱼 + 点击喂食 + 双击敲玻璃">
   Tech: p5.js, Canvas, CSS Glassmorphism, Web Audio API
   Keywords: <pixel, 场景词，如 aquarium, frutiger-aero, cyber-pet>
@@ -63,8 +47,8 @@
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 100vw; height: 100vh; overflow: hidden;
-    background: linear-gradient(160deg, #6ac5f8 0%, #90dcf4 35%, #bdf2e4 70%, #e6fcf5 100%);
-    font-family: "Segoe UI", "Frutiger", sans-serif;
+    background: linear-gradient(160deg, #a8e6f8 0%, #cdf0fa 30%, #e4f8f0 65%, #f4fcf9 100%);
+    font-family: "Segoe UI", "Frutiger", "Trebuchet MS", "PingFang SC", sans-serif;
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
 
@@ -116,6 +100,7 @@
 <script>
 function setup() {
   let cvs = createCanvas(windowWidth, windowHeight);
+  // 固定画布场景：createCanvas(CW,CH) + CSS transform:scale()，删 windowResized，不加 pixelDensity(1)
   // 致命关键：JS 强控层级，夹在 glass-bg(2) 和 glass-shell(4) 之间
   cvs.style('position', 'fixed');
   cvs.style('top', '0');
@@ -142,11 +127,7 @@ function windowResized() {
 </html>
 ```
 
-**关键点：**
-- Canvas `z-index: 3` 精准夹在毛玻璃底板(2)和透明外壳(4)之间
-- 玻璃壳 `z-index: 4` **不加 blur**，否则像素层被模糊
-- `cvs.style('filter', 'drop-shadow(...)')` — CSS 层面给整个像素世界增加景深
-- `pointer-events: none` 让 canvas 不拦截事件，由独立 `#interact-layer` 统一处理
+**关键点：** 验证 canvas z-index=3 夹在底板(2)和外壳(4)之间，pointer-events:none，外壳无 blur。
 
 ---
 
@@ -377,41 +358,11 @@ document.getElementById('interact-layer').addEventListener('pointerdown', (e) =>
 const AERO_SKY = ['#6ac5f8', '#90dcf4', '#bdf2e4', '#e6fcf5'];
 ```
 
-### 通用调色板模板
+### 调色板
 
-```javascript
-// 暖色系（珊瑚/日落/秋叶）
-const WARM_PALETTES = [
-  ['#ff7e67', '#ff4c29'], ['#ffa502', '#eccc68'], ['#ffb6c1', '#ff69b4']
-];
-// 冷色系（海洋/冰川/夜空）
-const COOL_PALETTES = [
-  ['#50c878', '#228b22'], ['#87cefa', '#4169e1'], ['#00cec9', '#81ecec']
-];
-// 荧光系（热带/霓虹/游戏感）
-const NEON_PALETTES = [
-  ['#ff4757', '#ff6b81'], ['#9b59b6', '#cd84f1'], ['#ffd700', '#ffa500']
-];
-```
-
-使用方式：为场景中不同物体分配不同调色板，而非每个物体独立随机 RGB。这样画面有色调统一感。
+> 调色板从 `assets/palettes.json` 选取——6 套命名色板（Aqua Glass / Botanical Dew / Sunlit Meadow / Coral Reef / Lavender Mist / Cyber Mint），按 scene 匹配。禁止对单个物体独立 random RGB。
 
 ---
-
----
-
-## 二次精修（在质量检查之前）
-
-初稿已完成。现在——**不要添加任何新东西。** 不要加新的像素角色、新的粒子、新的 UI 元素。回到已经写好的代码里：
-
-**"怎么让已经存在的东西更完整？"**
-
-- 这个生命的运动曲线——少一点 jitter、多一点 sine 的呼吸感
-- 这片毛玻璃的光泽——高光层的透明度 0.08 和 0.12 之间，哪个更接近"玻璃"而非"塑料"
-- 这个颜色的 Aero 感——够不够"2006 年的 iPod 广告"的清爽
-- 这个交互反馈的延迟——是在"机械确认"还是"它在回应你"
-
-如果一个改动需要添加新的像素实体——跳过它。精修只做三件事：**删减、微调参数、加强已经存在的东西之间的呼应。**
 
 ## 质量自检清单
 
@@ -419,7 +370,7 @@ const NEON_PALETTES = [
 
 交付前逐条确认：
 
-- [ ] `pixelDensity(1)` + `noSmooth()`，且 `windowResized` 中重复设置
+- [ ] 全视口：`pixelDensity(1)` + `noSmooth()`，`windowResized` 中重设。固定画布：仅 `noSmooth()`，无 `pixelDensity(1)`，无 `windowResized`
 - [ ] `clear()` 而非 `background()`，CSS 背景透出
 - [ ] Canvas 使用 JS 强控 `position:fixed; z-index:3`（夹在底板和外壳之间）
 - [ ] 毛玻璃 `backdrop-filter: blur()` 在 canvas 下层，外壳层无 blur
@@ -432,3 +383,7 @@ const NEON_PALETTES = [
 - [ ] 颜色来自预设调色板数组，非每个物体独立随机 RGB
 - [ ] Canvas 有 CSS `filter: drop-shadow()` 产生景深感
 - [ ] 移动端：`user-scalable=no`，`touch-action: none`
+- [ ] 字体栈使用 Frutiger Aero 栈（`"Segoe UI","Frutiger","Trebuchet MS","PingFang SC",sans-serif`）
+- [ ] 文字带发光白边（`text-shadow:0 1px 2px rgba(255,255,255,.8)`）
+- [ ] 无纯黑字体（统一深海蓝 `#1a4a5e` 或半透明白 `rgba(255,255,255,.85)`）
+- [ ] 操作提示：底部一行 12px / letter-spacing 3px / 半透明，不抢主视觉

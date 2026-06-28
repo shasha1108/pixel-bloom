@@ -25,7 +25,7 @@ function getSeed() {
 let SEED = getSeed();
 
 function setup() {
-  createCanvas(640, 960);
+  createCanvas(CW, CH);  // CW/CH 由画幅比例决定，见 generation-workflow §STEP1
   randomSeed(SEED);
   noiseSeed(SEED);
   // 后续所有 random() / noise() 调用都由 SEED 决定
@@ -161,7 +161,8 @@ function updateParam(key, value) {
 
 | 能力 | 来源 |
 |------|------|
-| 程序化模型 A-D、FSM 代码、调色板预设 | `code-templates.md` — STEP 4 前必读 |
+| 程序化模型 A-D、FSM 代码 | `code-templates.md` — STEP 4 前必读 |
+| 调色板 | `assets/palettes.json` — STEP 2 选色时查阅 |
 | 架构决策、仿生运动、材质、反模式 | `design-principles.md` — 启动时必读 |
 | **Seeded randomness、Seed 导航、参数面板** | 本文件 — 需要可复现/可探索时读取 |
 
@@ -180,21 +181,4 @@ function updateParam(key, value) {
 - [ ] 参数 slider 有明确 min/max/step
 - [ ] 移动端触摸 slider 不触发画布交互
 
-## 参数设计思考框架
-
-不是"想到什么加什么"——在决定哪些维度可调之前，系统性地问：
-
-| 维度 | 问题 | 像素场景示例 |
-|------|------|------------|
-| **数量** (Quantities) | 多少个？ | 植物数量、花瓣层数、鱼群规模 |
-| **尺度** (Scales) | 多大？多快？ | 生长速度、粒子大小、游动幅度 |
-| **概率** (Probabilities) | 多可能？ | 开花概率、突变概率、颜色变异率 |
-| **比例** (Ratios) | 什么配比？ | 花 vs 叶比例、暖色 vs 冷色占比 |
-| **角度** (Angles) | 什么方向？ | 枝干分叉角、游动偏转角、光源方向 |
-| **阈值** (Thresholds) | 何时行为改变？ | FSM 状态切换时间、粒子衰减触发点 |
-
-**设计原则：**
-- **3-5 个参数是甜蜜点**——少于 3 个不够探索，多于 5 个眼花缭乱
-- **每个参数必须对应一个视觉变化**——用户调 slider 后能立刻看到"变了什么"
-- **默认值 = 最佳体验值**——用户不调参数也应该看到好作品，参数是"锦上添花"而非"修bug"
-- **给每个参数起中文名 + 一句话解释**——用户在面板上看到"植物密度：控制花园里出现多少株植物"而非 `plantDensity: 0.5`
+> 参数设计方法论见 `design-principles.md §十二`。
