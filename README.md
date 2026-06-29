@@ -4,7 +4,7 @@
 
 <h1>Pixel Bloom · 像素生命的绽放</h1>
 
-<p><em>A Claude Code skill for building pixel-art interactive H5 pages with Frutiger Aero glassmorphism.</em></p>
+<p><em>一个 Claude Code Skill，用于生成像素艺术 × Frutiger Aero 毛玻璃风格的交互式 H5 页面。</em></p>
 
 <p>
   <a href="https://github.com/shasha1108/pixel-bloom/stargazers"><img src="https://img.shields.io/github/stars/shasha1108/pixel-bloom?style=for-the-badge&color=f5a97f" alt="Stars"></a>
@@ -14,11 +14,11 @@
 </p>
 
 <p>
-  <a href="#-quick-start">Quick Start</a> ·
-  <a href="#-what-it-makes">What It Makes</a> ·
-  <a href="#-features">Features</a> ·
-  <a href="#-how-it-works">How It Works</a> ·
-  <a href="#-project-structure">Structure</a>
+  <a href="#-快速开始">快速开始</a> ·
+  <a href="#-生成什么">生成什么</a> ·
+  <a href="#-能力矩阵">能力矩阵</a> ·
+  <a href="#-工作原理">工作原理</a> ·
+  <a href="#-项目结构">项目结构</a>
 </p>
 
 </div>
@@ -26,106 +26,106 @@
 ---
 
 <details open>
-<summary><strong>📑 Table of Contents</strong></summary>
+<summary><strong>📑 目录</strong></summary>
 
-- [About](#-about)
-- [What It Makes](#-what-it-makes)
-- [Quick Start](#-quick-start)
-- [Scene Modes](#-scene-modes)
-- [Features](#-features)
-- [The Concept Seeds](#-the-concept-seeds)
-- [How It Works](#-how-it-works)
-- [Quality Standards](#-quality-standards)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Color Palettes](#-color-palettes)
-- [Related Projects](#-related-projects)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [概述](#-概述)
+- [生成什么](#-生成什么)
+- [快速开始](#-快速开始)
+- [场景模式](#-场景模式)
+- [能力矩阵](#-能力矩阵)
+- [概念种子](#-概念种子)
+- [工作原理](#-工作原理)
+- [质量门禁](#-质量门禁)
+- [技术栈](#-技术栈)
+- [项目结构](#-项目结构)
+- [调色板](#-调色板)
+- [相关项目](#-相关项目)
+- [参与贡献](#-参与贡献)
+- [许可](#-许可)
 
 </details>
 
 ---
 
-## 📖 About
+## 📖 概述
 
-**pixel-bloom** is a Claude Code skill that generates complete, standalone HTML pages — each one a living pixel-art world wrapped in luminous Frutiger Aero glass. It combines five disciplines into a single output:
+**pixel-bloom** 是一个 Claude Code Skill，能生成完整的、独立运行的 HTML 页面——每个页面都是一个活在 Frutiger Aero 发光玻璃中的像素世界。一次生成，融合五种能力：
 
-| Pillar | Role |
-|--------|------|
-| 🎨 **p5.js pixel rendering** | Sharp, grid-aligned sprites — zero anti-aliasing, pure pixel aesthetic |
-| 🪟 **Frutiger Aero glassmorphism** | Frosted glass shells, ambient light orbs, Ganzfeld light fields |
-| 🌿 **Procedural flora** | 4 algorithmic plant models that grow, sway, and breathe |
-| 🐟 **AI FSM creatures** | Wander / Chase / Flee state machines driven by Perlin noise |
-| 🔊 **Web Audio synthesis** | Healing bowls, ambient drones, binaural beats — code only, zero audio files |
+| 能力 | 说明 |
+|------|------|
+| 🎨 **p5.js 像素渲染** | `pixelDensity(1)` + `noSmooth()`，栅格对齐的锐利像素精灵，零抗锯齿 |
+| 🪟 **Frutiger Aero 玻璃美学** | 磨砂玻璃层叠、环境光球、Ganzfeld 光场——发光的，不是暗黑的 |
+| 🌿 **程序化植物** | 4 种算法植物模型（stack-sway / grid-cull / radial-domain / fan-spread），会生长、摇摆、呼吸 |
+| 🐟 **AI 状态机生物** | Wander / Chase / Flee 有限状态机 + Perlin noise 驱动——会感知、会反应的生命体 |
+| 🔊 **Web Audio 代码合成** | 颂钵、环境 drone、和弦垫、双耳节拍——全部代码合成，零音频文件 |
 
-> **The output is a single `.html` file.** No build step, no framework, no dependencies beyond p5.js CDN. Open it in any browser and it runs.
+> **输出就是一个 `.html` 文件。** 不需要构建、不需要框架、除了 p5.js CDN 没有任何依赖。用浏览器打开就能运行。
 
 <br>
 
 <div align="center">
 
-| 🐱 Cyber Pet | 🌱 Pixel Bonsai | 🐠 Digital Aquarium | 🌲 Pixel Forest |
+| 🐱 赛博宠物 | 🌱 像素盆栽 | 🐠 电子水族箱 | 🌲 像素森林 |
 |:---:|:---:|:---:|:---:|
-| *A companion that waits* | *Growth needs no audience* | *A world that exists without you* | *Every tree has its rhythm* |
+| *一个会一直等你的伙伴* | *不需要观众的生长* | *一个与你平行存在的世界* | *每棵树有自己的节奏* |
 
 </div>
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🎬 What It Makes
+## 🎬 生成什么
 
-Every pixel-bloom generation is a **self-contained living pixel ecosystem** — here's what a typical output looks like:
+每次生成都是一个**自包含的像素生态系统**——这是产出的结构：
 
 ```
 ┌──────────────────────────────────────┐
-│  🌟  Ambient Light Orbs (z=1)        │  ← CSS radial-gradient, slow floating
+│  🌟  环境光球 (z=1)                  │  ← CSS radial-gradient，缓慢漂浮
 │  ┌────────────────────────────────┐  │
-│  │ 🪟  Frosted Glass Base (z=2)    │  │  ← backdrop-filter: blur()
+│  │ 🪟  磨砂玻璃基层 (z=2)          │  │  ← 唯一使用 backdrop-filter: blur() 的层
 │  │  ┌──────────────────────────┐  │  │
-│  │  │  🎨  Pixel Canvas (z=3)  │  │  │  ← p5.js: creatures, flora, particles
+│  │  │  🎨  像素画布 (z=3)       │  │  │  ← p5.js：生物、植物、粒子
 │  │  │  🐟→  🌿~  🫧↑          │  │  │
 │  │  └──────────────────────────┘  │  │
-│  │  ✨  Glass Shell (z=4)          │  │  │  ← ::after Fresnel highlight, no blur
+│  │  ✨  玻璃外壳 (z=4)             │  │  │  ← ::after 菲涅尔高光，无模糊，pointer-events: none
 │  └────────────────────────────────┘  │
-│  🖐️  Interaction Layer (z=5)         │  ← pointerdown events
+│  🖐️  交互拦截层 (z=5)               │  ← 原生 pointerdown 事件
 └──────────────────────────────────────┘
 ```
 
-**Each page includes:**
-- Pixel-art lifeforms with smooth Perlin-noise motion
-- Touch/click interactions (feed, knock, drag, soothe)
-- Ambient audio synthesized in real-time (no audio files)
-- Responsive canvas that works on mobile and desktop
+**每个页面包含：**
+- 像素艺术生命体，Perlin noise 驱动的平滑运动
+- 触控 / 点击交互（喂食、敲击、拖拽、安抚）
+- 实时合成的环境音效（零音频文件）
+- 响应式画布，移动端和桌面端都能跑
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Prerequisites
+### 前提
 
-- [Claude Code](https://claude.ai/code) installed
-- The pixel-bloom skill in your skills directory
+- 已安装 [Claude Code](https://claude.ai/code)
+- pixel-bloom skill 已在你的 skills 目录中
 
-### Generate your first pixel world
+### 生成你的第一个像素世界
 
-In Claude Code, type:
+在 Claude Code 中输入：
 
 ```
 /pixel-bloom 帮我做一个像素多肉盆栽，阳光透过玻璃洒下来
 ```
 
-Or in English:
+或者用英文描述：
 
 ```
 /pixel-bloom Create a pixel succulent garden in a glass terrarium with sunlight streaming through
 ```
 
-### More ideas
+### 更多灵感
 
 ```
 /pixel-bloom 做一个像素水族箱，里面有3条热带鱼和珊瑚
@@ -134,247 +134,247 @@ Or in English:
 /pixel-bloom A meditative Ganzfeld light field with floating pixel particles
 ```
 
-> 💡 **The more specific your scene description, the better the result.** Mention the container (glass dome? open sky?), the lifeforms (how many? what kind?), and the interaction (feed? knock? drag?).
+> 💡 **场景描述越具体，生成效果越好。** 建议描述清楚：容器形态（玻璃罩？开放天空？）、生命体（什么种类？几个？）、交互方式（喂食？敲击？拖拽？）。
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
-
----
-
-## 🏞️ Scene Modes
-
-| Mode | Description | Best For | Visual Style |
-|------|-------------|----------|--------------|
-| 🫙 **Closed Container** | Glass terrarium, aquarium, dome | Cyber pets, bonsai, fish tanks | Frosted glass frame, `backdrop-filter: blur()` |
-| 🌌 **Open Viewport** | Sky, underwater, open field | Pixel forests, sky gardens, seabed | Edge-to-edge canvas, no glass frame |
-| 🌅 **Ganzfeld** | Immersive light field — no objects, pure light | Meditation, light baths, floating experiences | Slow color-temperature drift, no hard edges, no darkness |
-
-> **Keywords that trigger Ganzfeld mode:** 沉浸 / 冥想 / 光浴 / 漂浮 / 光场 — the skill automatically switches to a specialized light-field rendering pipeline.
-
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## ✨ Features
+## 🏞️ 场景模式
 
-| | Feature | Description |
-|---|---------|-------------|
-| 🧬 | **Procedural Flora (4 models)** | Stack-sway (grasses), grid-cull (leaves), radial-domain (rosettes/succulents), fan-spread (ferns) — plants that grow algorithmically |
-| 🧠 | **AI Creature FSM** | Wander → Chase → Flee state machine with Perlin-noise motion — creatures that *react*, not just animate |
-| 🪟 | **Frutiger Aero Glass** | Multi-layer glass shells with Fresnel highlights, ambient light orbs, Ganzfeld light fields — luminous, not dark |
-| 🔊 | **Zero-File Audio** | Singing bowls, anxiety/healing drones, chord pads, binaural beats — all synthesized from Web Audio oscillators |
-| 🖐️ | **Touch Rituals** | Click-to-feed, double-click-to-knock, drag-to-soothe — custom pointerdown debounce with mobile support |
-| 🌱 | **Seed System** | Reproducible random seeds + parameter sliders + shareable URLs — revisit the exact same world |
-| 📐 | **5 Canvas Ratios** | 3:4, 9:16, 1:1, 4:3, 16:9, or full viewport — scene-recommended, user-chosen |
-| 🎨 | **6 Color Palettes** | Aqua Glass, Botanical Dew, Sunlit Meadow, Coral Reef, Lavender Mist, Cyber Mint |
-| ✅ | **Built-in Validator** | `validate.py` — 8 categories of checks: meta headers, pixel rules, z-index sandwich, audio, color, performance, JS syntax |
+| 模式 | 说明 | 适合 | 视觉特征 |
+|------|------|------|----------|
+| 🫙 **封闭容器** | 玻璃 terrarium、水族箱、玻璃罩 | 赛博宠物、像素盆栽、像素养鱼 | 磨砂玻璃边框，`backdrop-filter: blur()` |
+| 🌌 **开放视口** | 天空、水下、开放原野 | 像素森林、天空花园、海底 | 无边画布，无玻璃边框 |
+| 🌅 **Ganzfeld 光场** | 沉浸式光场——无物体，纯光 | 冥想、光浴、漂浮体验 | 缓慢色温漂移，无硬边缘，无暗色 |
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+> **触发 Ganzfeld 模式的关键词：** 沉浸 / 冥想 / 光浴 / 漂浮 / 光场——skill 会自动切换到专用的光场渲染管线。
+
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🌱 The Concept Seeds
+## ✨ 能力矩阵
 
-> Every pixel-bloom scene is built around an unspoken emotional anchor — a "concept seed" that guides every design decision from color temperature to motion speed to interaction feedback.
+| | 能力 | 说明 |
+|---|------|------|
+| 🧬 | **程序化植物（4 种模型）** | stack-sway（草叶层叠摇摆）、grid-cull（网格删减法叶簇）、radial-domain（径向域莲座/多肉）、fan-spread（扇状蕨类）——算法生成的植物 |
+| 🧠 | **AI 生物状态机** | Wander → Chase → Flee 有限状态机 + Perlin noise 运动——生物会*反应*，不只是播放动画 |
+| 🪟 | **Frutiger Aero 玻璃** | 多层玻璃壳 + 菲涅尔高光 + 环境光球 + Ganzfeld 光场——发光的，不是暗黑的 |
+| 🔊 | **零文件音频** | 颂钵、焦虑/疗愈 drone、和弦垫、双耳节拍——全部由 Web Audio 振荡器合成 |
+| 🖐️ | **触控仪式** | 单击喂食、双击敲击、拖拽安抚——自定义 pointerdown 去抖，移动端适配 |
+| 🌱 | **种子系统** | 可复现随机种子 + 参数滑块 + 可分享 URL——随时回到那个世界 |
+| 📐 | **5 种画幅比例** | 3:4 / 9:16 / 1:1 / 4:3 / 16:9 / 全视口——场景推荐，用户决定 |
+| 🎨 | **6 套调色板** | Aqua Glass / Botanical Dew / Sunlit Meadow / Coral Reef / Lavender Mist / Cyber Mint |
+| ✅ | **内置校验器** | `validate.py`——8 大类检查：meta 头、像素规则、z-index 夹层、音频、色彩、性能、JS 语法 |
 
-| Scene | Surface | Concept Seed | Guiding Name |
-|-------|---------|-------------|--------------|
-| 🐱 **Cyber Pet** | "Raise a digital pet" | *"It will always be there"* — unconditional companionship | **Always Here** |
-| 🌿 **Pixel Bonsai** | "Grow a pixel plant" | *"It grows even when you're not watching"* — life needs no audience | **Still Growth** |
-| 🐠 **Digital Aquarium** | "Keep a tank of pixel fish" | *"They don't care whether you're watching"* — a parallel world's parallel existence | **Another Tank** |
-| 🌲 **Pixel Forest** | "A grove of pixel trees" | *"Every tree has its own rhythm"* — slowness is not falling behind | — |
-
-These aren't marketing slogans. They're **polaris names** — every subsequent decision (color warmth, motion speed, interaction latency) is checked against them. If a cyber pet's motion feels "impressive" instead of "companionable," the name says: fix it.
-
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## ⚙️ How It Works
+## 🌱 概念种子
 
-### The Generation Pipeline (6 Steps)
+> 每一个 pixel-bloom 场景都建立在一个不直说的情感锚点上——"概念种子"。它决定后续所有设计的走向：颜色温度、运动速度、交互反馈的延迟和质感。
+
+| 场景 | 表面需求 | 概念种子 | 北极星命名 |
+|------|----------|----------|------------|
+| 🐱 **赛博宠物** | "养一个电子宠物" | **"它会一直在"**——无条件的陪伴 | **Always Here** |
+| 🌿 **像素盆栽** | "种一棵像素植物" | **"你不在的时候它也在生长"**——生命不需要观众 | **Still Growth** |
+| 🐠 **电子水族箱** | "养一缸像素鱼" | **"它们不在乎你有没有在看"**——另一个世界的平行存在 | **Another Tank** |
+| 🌲 **像素森林** | "一片像素树林" | **"每棵树都有自己的节奏"**——慢下来不是落后 | — |
+
+这些不是营销文案，而是**北极星命名**——后续每一项决策（颜色冷暖、运动快慢、交互延迟）都要对照它检查。如果赛博宠物的运动让人觉得"好厉害"而不是"好安心"，北极星会说：不对，改。
+
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
+
+---
+
+## ⚙️ 工作原理
+
+### 六步生成管线
 
 ```
 STEP 0           STEP 1–3          STEP 4            STEP 4.5       STEP 5–5.5        STEP 6
-Visual           Design            Code              Polish         Quality           Deliver
-Research  ──→    Decisions  ──→    Generation  ──→   (Refine)  ──→  Assurance  ──→   & Verify
-(new scenes)     Canvas ratio      From defensive    Delete only    validate.py       Browser test
-                 Scene mode        skeleton          Micro-tune     Reader test       Touch check
-                 Audio profile     Templates         Strengthen     Emotional check   Format output
-                 Decompose scene   Flora models      resonance
-                 Tech decisions    FSM code
+视觉调研          设计决策          代码生成          精修           质量保障           交付验证
+──────→          ──────→          ──────→          ──────→        ──────→          ──────→
+新场景调研       画幅比例          从防御性骨架出发    只删不增        validate.py      浏览器实测
+                场景模式          匹配植物模型        微调参数        读者测试          触控检查
+                音频方案          组装 FSM 代码       强化呼应        情感检查          格式化输出
+                像素拆解
+                5 项技术决策
 ```
 
 <details>
-<summary><strong>🔍 Step-by-step details</strong></summary>
+<summary><strong>🔍 各步骤详情</strong></summary>
 
-| Step | What Happens |
-|------|-------------|
-| **STEP 0** | Visual research — for new scene types, gather reference on real-world glass, plants, creature behaviors |
-| **STEP 1** | Decide canvas ratio, audio profile, and scene mode (closed/open/Ganzfeld) |
-| **STEP 2** | Decompose the user's description into pixel elements + assign procedural models |
-| **STEP 3** | 5 technical decisions: canvas type, motion mode, glass type, particle count, audio profile |
-| **STEP 4** | Code generation from defensive skeleton + matching flora/FSM templates |
-| **STEP 4.5** | Polish — *only* delete, micro-tune parameters, strengthen resonance. No new entities |
-| **STEP 5** | Run `validate.py` — 8 categories, must pass all green |
-| **STEP 5.5** | **Reader test** — shift perspective to a first-time user: does the first second feel right? |
-| **STEP 6** | Browser verification via `/verify`, touch check, final delivery |
+| 步骤 | 做什么 |
+|------|--------|
+| **STEP 0** | 视觉调研——新场景类型需要先搜集真实玻璃、植物、生物行为参考 |
+| **STEP 1** | 确定画幅比例、音频方案、场景模式（封闭/开放/Ganzfeld） |
+| **STEP 2** | 把用户描述拆解为像素元素，匹配程序化模型 |
+| **STEP 3** | 5 项技术决策：画布类型、运动模式、玻璃类型、粒子数量、音频方案 |
+| **STEP 4** | 从防御性骨架出发生成代码，加载匹配的植物模型和 FSM 模板 |
+| **STEP 4.5** | 精修——*只做*删减、微调参数、加强已有元素呼应。不加新实体 |
+| **STEP 5** | 运行 `validate.py`——8 大类检查，全绿才继续 |
+| **STEP 5.5** | **读者测试**——切换视角为第一次打开页面的用户：第一秒的感觉对吗？ |
+| **STEP 6** | `/verify` 浏览器验证，触控实测，最终交付 |
 
 </details>
 
-### Immutable Architecture: The Z-Index Sandwich
+### 不可变架构：Z-Index 夹层
 
-Every generated page uses this exact layer stack — never changed:
+每个生成页面使用完全一致的图层堆叠——永不改变：
 
 ```
-z=1  🌟  Ambient Light Orbs       CSS radial-gradient, fixed, slow float
-z=2  🪟  Frosted Glass Base       ONLY layer with backdrop-filter: blur()
-z=3  🎨  Pixel Canvas             p5.js render surface, drop-shadow
-z=4  ✨  Glass Shell              ::after Fresnel highlight, NO blur, pointer-events: none
-z=5  🖐️  Interaction Intercept    Native pointerdown events, no synthetic clicks
+z=1  🌟  环境光球               CSS radial-gradient，固定定位，缓慢漂浮
+z=2  🪟  磨砂玻璃基层           唯一使用 backdrop-filter: blur() 的层
+z=3  🎨  像素画布               p5.js 渲染面，drop-shadow
+z=4  ✨  玻璃外壳               ::after 菲涅尔高光，禁止模糊，pointer-events: none
+z=5  🖐️  交互拦截层             原生 pointerdown 事件，无合成点击
 ```
 
-### Three Biomimetic Motion Laws
+### 仿生运动三法则
 
-| Law | Principle | Implementation |
-|-----|-----------|---------------|
-| 🔄 **Life Breathing** | No object is ever perfectly still | `sin`/`cos` micro-motion on every entity |
-| 🌊 **Soul Wandering** | Smooth exploration, not mechanical patrol | Perlin noise (`noise()`) — never `random()` for movement |
-| 🍮 **Delayed Gratification** | Weight and "jelly-like" feel | `lerp()` damping on all transitions |
+| 法则 | 原则 | 实现 |
+|------|------|------|
+| 🔄 **生命呼吸** | 没有任何物体是完全静止的 | 每个实体都有 `sin`/`cos` 微动 |
+| 🌊 **灵魂漫游** | 平滑探索，不是机械巡逻 | Perlin noise（`noise()`）——绝对不用 `random()` 做运动 |
+| 🍮 **延迟满足** | 有重量感、"果冻般"的质感 | 所有过渡使用 `lerp()` 阻尼 |
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🔬 Quality Standards
+## 🔬 质量门禁
 
-pixel-bloom enforces a multi-layered quality gate before any output is delivered:
+pixel-bloom 在交付前执行多层质量把关：
 
-| Gate | Tool | Checks |
-|------|------|--------|
-| 🔧 **Structural** | `scripts/validate.py` | Meta headers, p5.js pixel rules (`pixelDensity(1)`, `noSmooth()`), z-index sandwich integrity, JS syntax (`node --check`) |
-| 🎨 **Aesthetic** | Manual review | Color discipline (no dark mode, no high-saturation primaries), Frutiger Aero palette adherence |
-| 🧠 **Interaction** | Manual review | Click/double-click separation (300ms debounce), mobile touch (no default scroll), drag support |
-| 🔊 **Audio** | Manual review | AudioContext resume on first interaction, volume envelopes, no audio file dependencies |
-| ❤️ **Emotional** | **Reader Test** | 4 questions: first-second feeling, instinctive interaction targets, 10-second retention, "AI-made" tells |
+| 门禁 | 工具 | 检查内容 |
+|------|------|----------|
+| 🔧 **结构** | `scripts/validate.py` | Meta 注释头、p5.js 像素规则（`pixelDensity(1)`、`noSmooth()`）、z-index 夹层完整性、JS 语法（`node --check`） |
+| 🎨 **美学** | 人工审查 | 色彩纪律（禁止暗黑模式、禁止高饱和原色）、Frutiger Aero 色板一致性 |
+| 🧠 **交互** | 人工审查 | 单击/双击分离（300ms 去抖）、移动端 touch 不触发默认滚动、拖拽支持 |
+| 🔊 **音频** | 人工审查 | AudioContext 首次交互后恢复、音量包络、零音频文件依赖 |
+| ❤️ **情感** | **读者测试** | 4 个问题：第一秒感受、本能想碰哪里、10 秒后还在看吗、有没有"AI 做的"痕迹 |
 
-> The **Reader Test** (STEP 5.5) is unique to pixel-bloom: the AI must shift perspective and evaluate the output as a first-time user, checking emotional resonance against the concept seed — not just technical correctness.
+> **读者测试**（STEP 5.5）是 pixel-bloom 独有的质量环节：AI 必须切换视角，以首次打开页面的用户身份评估情感共鸣是否与概念种子一致——不只是检查技术正确性。
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈
 
 <div align="center">
 
-| Layer | Technology | Purpose |
+| 层级 | 技术 | 用途 |
 |:---:|:---:|---|
-| 🎨 | **p5.js 1.9.0** | Pixel-perfect Canvas2D rendering |
-| 🪟 | **CSS Glassmorphism** | Multi-layer frosted glass with `backdrop-filter` |
-| 🔊 | **Web Audio API** | Oscillator-based synthesis (no audio files) |
-| 🌊 | **Perlin Noise** | Smooth organic motion for all lifeforms |
-| 🧮 | **Procedural Math** | 4 flora models + FSM creature behaviors |
-| 🌐 | **Vanilla HTML/CSS/JS** | Zero framework, single-file output |
+| 🎨 | **p5.js 1.9.0** | 像素级 Canvas2D 渲染 |
+| 🪟 | **CSS Glassmorphism** | `backdrop-filter` 多层磨砂玻璃 |
+| 🔊 | **Web Audio API** | 振荡器合成音频（零音频文件） |
+| 🌊 | **Perlin Noise** | 所有生命体的平滑有机运动 |
+| 🧮 | **程序化数学** | 4 种植物模型 + FSM 生物行为 |
+| 🌐 | **纯 HTML/CSS/JS** | 零框架，单文件输出 |
 
 </div>
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 📁 Project Structure
+## 📁 项目结构
 
 ```
 pixel-bloom/
-├── SKILL.md                          # Core skill definition & 6-step generation pipeline
-├── README.md                         # ← You are here
+├── SKILL.md                          # 核心 skill 定义 & 六步生成管线
+├── README.md                         # ← 你在看这里
 ├── LICENSE                           # MIT
-├── CLAUDE.md                         # Git workflow discipline (multi-device safety)
+├── CLAUDE.md                         # Git 工作流规范（多设备防冲突）
 │
 ├── assets/
-│   └── palettes.json                 # 6 Frutiger Aero color palettes
+│   └── palettes.json                 # 6 套 Frutiger Aero 调色板
 │
 ├── references/
-│   ├── design-principles.md          # Architecture decisions, motion laws, materials, anti-patterns
-│   ├── generation-workflow.md        # STEP 0–3 execution details, scene mode tables
-│   ├── code-templates.md             # Defensive HTML skeleton, 4 flora models, FSM, quality checklist
-│   ├── audio-engine.md               # Web Audio synthesis recipes (zero audio files)
-│   ├── audio-advanced.md             # Chord pads, pentatonic scales, AudioWorklet, spatial reverb
-│   └── seeded-exploration.md         # Seed navigation, parameter sliders, shareable URLs
+│   ├── design-principles.md          # 架构决策 / 仿生运动三法则 / 材质 / 反模式 / Ganzfeld 模式
+│   ├── generation-workflow.md        # STEP 0–3 执行细节 / 场景模式表 / 技术决策表
+│   ├── code-templates.md             # 防御性 HTML 骨架 / 4 种植物模型 / FSM 代码 / 质量清单
+│   ├── audio-engine.md               # Web Audio 合成配方（零音频文件）
+│   ├── audio-advanced.md             # 和弦垫 / 节拍器 / 五声音阶 / AudioWorklet / 空间混响
+│   └── seeded-exploration.md         # 种子导航 / 参数滑块面板 / 可分享 URL
 │
 └── scripts/
-    └── validate.py                   # 8-category static validator (meta, pixel, z-index, JS syntax, …)
+    └── validate.py                   # 8 类静态校验器（meta / 像素 / z-index / JS 语法 / …）
 ```
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🎨 Color Palettes
+## 🎨 调色板
 
-Six hand-crafted Frutiger Aero palettes — each scene picks one:
+6 套手工调校的 Frutiger Aero 色板——每个场景选用一套：
 
 <table>
 <tr>
-<td align="center"><strong>Aqua Glass</strong><br><code>#C8E6F5</code> <code>#7EC8E3</code> <code>#4A9EC8</code></td>
-<td align="center"><strong>Botanical Dew</strong><br><code>#C5E8C9</code> <code>#7DB87D</code> <code>#4A8C4A</code></td>
-<td align="center"><strong>Sunlit Meadow</strong><br><code>#F5E6C8</code> <code>#E8C87D</code> <code>#C8A84A</code></td>
+<td align="center"><strong>Aqua Glass</strong>（水族玻璃）<br><code>#C8E6F5</code> <code>#7EC8E3</code> <code>#4A9EC8</code></td>
+<td align="center"><strong>Botanical Dew</strong>（植物晨露）<br><code>#C5E8C9</code> <code>#7DB87D</code> <code>#4A8C4A</code></td>
+<td align="center"><strong>Sunlit Meadow</strong>（阳光草甸）<br><code>#F5E6C8</code> <code>#E8C87D</code> <code>#C8A84A</code></td>
 </tr>
 <tr>
-<td align="center"><strong>Coral Reef</strong><br><code>#F5C8D0</code> <code>#E87D8E</code> <code>#C84A5E</code></td>
-<td align="center"><strong>Lavender Mist</strong><br><code>#E0D0F0</code> <code>#B89AE0</code> <code>#8B6CC0</code></td>
-<td align="center"><strong>Cyber Mint</strong><br><code>#C8F5E6</code> <code>#7DE8C8</code> <code>#4AC8A8</code></td>
+<td align="center"><strong>Coral Reef</strong>（珊瑚礁）<br><code>#F5C8D0</code> <code>#E87D8E</code> <code>#C84A5E</code></td>
+<td align="center"><strong>Lavender Mist</strong>（薰衣草雾）<br><code>#E0D0F0</code> <code>#B89AE0</code> <code>#8B6CC0</code></td>
+<td align="center"><strong>Cyber Mint</strong>（赛博薄荷）<br><code>#C8F5E6</code> <code>#7DE8C8</code> <code>#4AC8A8</code></td>
 </tr>
 </table>
 
-> All palettes follow Frutiger Aero rules: soft pastels, luminous gradients, **no dark backgrounds, no high-saturation primaries**.
+> 全部遵循 Frutiger Aero 色彩纪律：柔和粉彩、发光渐变、**禁止深色背景、禁止高饱和原色**。
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
-
----
-
-## 🔗 Related Projects
-
-| Repo | What It Does |
-|------|-------------|
-| [**healing-visual-lab**](https://github.com/shasha1108/healing-visual-lab) | 15 interactive digital healing experiments — Three.js / WebGL |
-| [**healing-space**](https://github.com/shasha1108/healing-space) | Touch-driven healing H5 generator — GPU fluids, WebGL shaders |
-| [**inner-voice**](https://github.com/shasha1108/inner-voice) | Xiaohongshu emotional content creation — metaphor mining, visual storytelling |
-| [**h5-publish-skill**](https://github.com/shasha1108/h5-publish-skill) | One-click H5 publishing to GitHub Pages — drag, drop, deploy |
-
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 🤝 Contributing
+## 🔗 相关项目
 
-This is a personal creative tool, but contributions and ideas are welcome:
+| 仓库 | 做什么 |
+|------|--------|
+| [**healing-visual-lab**](https://github.com/shasha1108/healing-visual-lab) | 交互式数字疗愈作品集——15 件 Three.js / WebGL 交互实验 |
+| [**healing-space**](https://github.com/shasha1108/healing-space) | 触觉驱动的交互式疗愈 H5 生成器——GPU 流体、WebGL 着色器 |
+| [**inner-voice**](https://github.com/shasha1108/inner-voice) | 小红书情绪内容创作——隐喻挖掘、场景写作、视觉叙事 |
+| [**h5-publish-skill**](https://github.com/shasha1108/h5-publish-skill) | 一键发布 H5 到 GitHub Pages——拖入文件夹即上线 |
 
-1. 🍴 **Fork** the repository
-2. 🌿 **Branch** (`feature/your-idea`)
-3. ✍️ **Commit** with clear messages
-4. 📤 **Push** and open a **Pull Request**
-
-**Areas where contributions are especially welcome:**
-- New procedural flora models (beyond A–D)
-- Additional Frutiger Aero color palettes
-- Audio synthesis recipes for new emotional textures
-- Translation improvements (English / 中文)
-
-> See [CLAUDE.md](CLAUDE.md) for git workflow conventions used in this repo.
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
 
 ---
 
-## 📄 License
+## 🤝 参与贡献
 
-MIT © 2026 [@shasha1108](https://github.com/shasha1108) — see [LICENSE](LICENSE) for full text.
+这是个人创作工具，但欢迎任何想法和贡献：
+
+1. 🍴 **Fork** 本仓库
+2. 🌿 **创建分支**（`feature/你的想法`）
+3. ✍️ **提交**清晰的 commit message
+4. 📤 **Push** 并打开 **Pull Request**
+
+**特别欢迎以下方向的贡献：**
+- 新的程序化植物模型（超越现有 A–D 四种）
+- 更多 Frutiger Aero 调色板
+- 新情感质感的音频合成配方
+- 文档翻译改进（中文 / English）
+
+> 本仓库使用的 Git 工作流规范见 [CLAUDE.md](CLAUDE.md)。
+
+---
+
+## 📄 许可
+
+MIT © 2026 [@shasha1108](https://github.com/shasha1108) —— 详见 [LICENSE](LICENSE)。
 
 <br>
 
 <div align="center">
 
-<sub>Made with pixels, glass, and light. 用像素、玻璃与光，创造出生命绽放的世界。</sub>
+<sub>用像素、玻璃与光，创造出生命绽放的世界。</sub>
 
 </div>
 
-<p align="right"><sub><a href="#top">↑ back to top</a></sub></p>
+<p align="right"><sub><a href="#top">↑ 回到顶部</a></sub></p>
