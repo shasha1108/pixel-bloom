@@ -434,6 +434,77 @@ for (const s of scales) {
 console.log(issues.length ? issues.join('\n') : 'All checks passed');
 ```
 
+### 14.5 像素视觉验证（对抗式检查之后 · 质检之前 · 强制执行）
+
+对抗式检查验证了"代码结构安全"——但它不能验证**运行时视觉正确**。以下 4 项是脚本扫描不到的、必须由人脑+计算确认的视觉硬指标。**WARN 不是"可以忽略"——WARN 的项目必须在本步骤逐项目测确认。**
+
+#### 检查 1：像素可见性
+
+对抗式检查脚本提取了所有 `scale` 值并计算了实际像素。本步骤**逐项目测每一个 WARN 项**：
+
+```
+对于每个 scale < 阈值的元素：
+  1. 计算实际像素 = 基准尺寸 × scale
+  2. < 8px  → 致命：用户看不见这个元素。增大 scale 或增大基准尺寸
+  3. 8-15px → 目测确认：在 1280×800 视口下，这个元素是一个"形状"还是"一个点"？
+             如果是"一个点" → 增大 scale 或增大基准尺寸
+             如果是"一个可辨识的形状" → 通过（如 12px 的像素蝴蝶在 640×960 画布上是可辨识的）
+```
+
+**通过标准**：所有 WARN 项均已目测确认可辨识，或已修复。
+
+#### 检查 2：颜色对比度
+
+相邻层的颜色对必须可分辨。使用色差公式 `Δ = |ΔR|+|ΔG|+|ΔB|`：
+
+```
+对于每个相邻层对（如 L1 vs L2 / 元素 vs 背景 / 文字 vs 底衬）：
+  1. 计算色差 Δ
+  2. Δ < 30 → 致命：两层在普通屏幕上看起来是同一层。增大色差——改其中一层的颜色
+  3. Δ 30-60 → 目测确认：在屏幕亮度 50% 下能否分辨？
+             如果不能 → 增大色差
+  4. Δ > 60 → 通过
+```
+
+**特殊规则**：
+- 毛玻璃底板上的文字：Δ 必须 > 80（`backdrop-filter: blur()` 会进一步降低对比度）
+- 极远层（L1）：B 通道必须 > G 通道（蓝移——大气透视正确）
+- 近景层（L5）：G 通道必须 > B 通道（绿移——近景饱和正确）
+
+**通过标准**：所有层对的 Δ > 30，目测确认可分辨。
+
+#### 检查 3：viewport 响应
+
+固定画布（如 640×960）通过 `transform: scale()` 适配屏幕。验证不同视口下的视觉：
+
+```
+模拟 3 个关键视口（用浏览器 DevTools 或手动 resize）：
+  1. 375×812（iPhone SE）——最小屏
+  2. 1280×800（桌面基准）
+  3. 1920×1080（大屏）
+
+每个视口下检查：
+  - 画布是否完全可见（不被裁剪）？
+  - 像素是否因放大而严重锯齿化？（>2.5x 放大时有明显锯齿 → 需调整画布基准尺寸）
+  - FPS 是否在各视口下 ≥ 50？（小屏 = 渲染负担小，大屏 = CSS scale 不增加绘制像素）
+  - 毛玻璃 z-index 是否正确？（Safari stacking context bug — z=3 canvas 是否夹在 z=2 底板和 z=4 外壳之间）
+```
+
+**通过标准**：3 个视口下画布完整可见、无不合理锯齿、FPS ≥ 50、z-index 正确。
+
+#### 检查 4：运动稳定性
+
+FSM 生命体和粒子系统在长时间运行后是否退化：
+
+```
+30 秒模拟运行（在 1280×800 视口下）：
+  - FSM 生命体：是否卡在某个状态不切换？是否飞出画面边界后消失？
+  - Perlin 粒子：是否均匀分布（无聚集/空洞）？总数是否稳定（不耗尽/不累积）？
+  - 帧率：初始帧率 vs 30 秒后帧率？下降 > 20% → 排查粒子累积或内存泄漏
+```
+
+**通过标准**：30 秒后 FSM 仍在正常切换状态、粒子分布均匀、总数稳定、帧率降幅 < 20%。
+
 ---
 
 ## 十五、第一性原理创作流程（全场景通用）
@@ -477,3 +548,260 @@ console.log(issues.length ? issues.join('\n') : 'All checks passed');
 | 5 | 生物细节不"生物" — 运动轨迹是平滑 Perlin 而非分段转向/FSM | 中 |
 | 6 | 颜色反差不够 — 元素融入背景 | 中 |
 | 7 | 粒子参数微调 | 低（最后 10%，不是前 90%） |
+
+---
+
+## 十六、概念种子→参数偏置（STEP 3 参数决策后强制执行）
+
+概念种子是 pixel-bloom 的情绪锚点。**但它不能只是命名和宏观方向——必须系统化地偏置所有参数选择。**
+
+当前流程：STEP 3 技术决策 → 自问"颜色温度、运动速度、交互节奏是否与概念种子一致？"——这是**事后追问**。如果发现不一致，需要回退重选——模型大概率不会真的回退，而是说服自己"还行"。
+
+**改为事前约束**：STEP 3 参数决策完成后，逐项对照下表。**参数选择不允许在偏置方向上反向。**
+
+### 偏置方向表（按概念种子）
+
+| 概念种子 | 色温 | 运动速度 | 交互响应模式 | 粒子/元素密度 | 音效方向 |
+|---------|------|---------|------------|-------------|---------|
+| **Always Here**（它会一直在） | **暖** +20%（偏橙/金/奶油白） | **慢** -30%（呼吸级缓动优先） | **回应感**（交互后 300-500ms 内有微妙变化——不是立刻弹，也不是不回应） | **偏疏**（不拥挤——陪伴是空间，不是压迫） | 低频暖底噪 + 单音确认（不喧宾夺主） |
+| **Still Growth**（不需观众） | **中性偏冷**（莫兰迪绿/灰蓝） | **极慢** -50%（几乎静止的微动） | **自主变化 > 交互反馈**（用户不碰也在变；碰了反而不一定有回应——它不在乎） | **疏**（每个元素有独立呼吸空间） | 极静或干脆无音效 |
+| **Another Tank**（平行存在） | **中性**（水下蓝绿/自然色） | **中速**（自然游动节奏） | **无直接响应**（鱼不在乎你有没有在看——交互不影响运动，最多影响环境光） | **正常**（世界是满的，不是为人留白） | 水下低频闷响 + 气泡音 |
+| **Windmill Valley**（可走入） | **Golden Hour 暖**（暖金光源 + 大气透视蓝移） | **自然风变速**（Perlin 噪声驱动，1.0-2.5 级波动） | **滑动 = 感受风**（鼠标/手指滑过有风轨跟随；单击 = 风铃触发） | **偏密**（世界是完整的——该有的都有） | 风底噪 + 风铃五声音阶 + 风速→音高映射 |
+
+### 使用规则
+
+1. **先选参数，再对表偏置**。不是从表里直接读参数——是先按技术决策走，然后用偏置方向调整。
+2. **偏置是"倾向"不是"绝对值"**。"暖 +20%"意思是：在技术决策给出的合理范围内，偏暖 20%。不是把颜色从蓝色变成橙色。
+3. **如果概念种子不在表中**（用户自定义了新种子）→ 从最接近的种子类推。如果无法类推 → 问用户：这个种子的色温/速度/密度应该是什么方向？
+4. **如果参数选择在偏置方向上反向**（如"Still Growth"选了快摇+高饱和暖色）→ 回退重选。这是致命偏差——概念种子形同虚设。
+
+### 自检（STEP 3 完成后、STEP 4 生成前）
+
+- [ ] 色温方向是否与概念种子偏置一致？
+- [ ] 运动速度是否与概念种子偏置一致？（最快的元素/最活跃的 FSM 状态下的速度）
+- [ ] 交互响应模式是否与概念种子偏置一致？（"Still Growth"不能有"一碰就开花"的反馈）
+- [ ] 如果没有音效，是否与概念种子偏置一致？（"Still Growth"无音效 = 加分，不是缺失）
+
+---
+
+## 十七、像素风速场 — 全场景风元素统一采样
+
+> 设计哲学源自 OceanThreejs 的"位移场→一切"：泡沫/法线/颜色都从同一个底层场派生。适配到 pixel-bloom：**所有被风驱动的像素元素——树 sway、水面波浪、花粉粒子、蝴蝶——从同一个 Perlin 风速场 `windField(x, y, time)` 采样。**
+
+### 17.1 为什么需要共享风场
+
+`vegetation-system.md` 的三级风很好——但每棵树各自调用 `sin(time * freq + phase)`。`ocean-pixels.md` 的波浪用 `wave.speed * time + phase`。花粉用 `noise(x*0.01, time*0.3)`。**三套时间尺度、三套相位——看起来不是同一阵风。**
+
+反模式场景：树同时向左歪（sin 同步）、水面波浪向右涌（相位偏移不同）、花粉向下漂（noise 梯度方向）→ 三个"风驱动"元素在互相矛盾。用户不会说"风场不统一"——用户会说"感觉不自然"。
+
+### 17.2 风速场定义
+
+```javascript
+/**
+ * 像素风速场——全场景共享
+ * @param {number} x - 世界 X 坐标（像素空间）
+ * @param {number} y - 世界 Y 坐标
+ * @param {number} time - 全局时间（秒）
+ * @param {number} strength - 全局风速 0~1（从概念种子偏置或外部 Perlin 噪声驱动）
+ * @returns {{vx: number, vy: number}} 风速向量（-1~1 范围，未乘振幅）
+ */
+function windField(x, y, time, strength = 1.0) {
+  // 双层 Perlin 噪声——大尺度风带 + 小尺度阵风
+  const sx1 = x * 0.005;
+  const sy1 = y * 0.005;
+  const sx2 = x * 0.02;
+  const sy2 = y * 0.02;
+
+  const t = time * 0.3;  // 风速变化速度
+
+  // 大尺度——持续风向（变化慢）
+  const vx1 = noise(sx1 + t, sy1) * 2 - 1;
+  const vy1 = noise(sx1 + t + 100, sy1 + 100) * 2 - 1;
+
+  // 小尺度——阵风（变化快）
+  const vx2 = (noise(sx2 - t * 2, sy2) - 0.5) * 1.5;
+  const vy2 = (noise(sx2 - t * 2 + 50, sy2 + 50) - 0.5) * 1.5;
+
+  // 混合：大尺度 70% + 小尺度 30%
+  return {
+    vx: (vx1 * 0.7 + vx2 * 0.3) * strength,
+    vy: (vy1 * 0.7 + vy2 * 0.3) * strength,
+  };
+}
+```
+
+**关键设计**：
+- **双层噪声**：大尺度（0.005）产生持续风向——一整片区域的元素朝同一方向偏。小尺度（0.02）产生阵风——单棵树可能有额外的微颤
+- **time 乘以不同的系数**：大尺度变化慢（`*0.3`），小尺度变化快（`*2`）→ 风向整体持续但不断有小阵风叠加
+- **返回向量，非标量**：风向 + 强度在一个返回值中——元素可以计算"风在推我往哪个方向"
+
+### 17.3 各元素从风速场采样
+
+#### 树 sway（替代 vegetation-system.md §五 的独立 sin）
+
+```javascript
+// 旧：每棵树独立 sin
+// tree.swayOffset = sin(time * 1.5 + tree.phase) * 3.0 * windStrength;
+
+// 新：从风速场采样——同一阵风，不同树有不同偏移
+const wind = windField(tree.trunk.x, tree.trunk.y, time, windStrength);
+tree.swayOffset = wind.vx * 3.0;  // 树干 sway ±3px
+// 叶颤：叠加风速场的小尺度高频——直接用 noise 的第二层
+const gust = windField(tree.trunk.x + 5, tree.trunk.y + 5, time, windStrength);
+tree.leafFlutter = gust.vx * 1.0;  // 叶颤 ±1px
+```
+
+#### 水面波浪相位偏移（替代 ocean-pixels.md 的独立 speed）
+
+```javascript
+// 旧：每条波浪独立 speed
+// const theta = wave.freq * x + wave.speed * time + wave.phase;
+
+// 新：从风速场采样——风的局部方向影响波浪相位
+const wind = windField(x, horizonY, time, windStrength);
+const phaseShift = wind.vx * 0.3;  // 风向改变波浪的视觉相位
+const theta = wave.freq * x + wave.speed * time + wave.phase + phaseShift;
+```
+
+#### 花粉/粒子漂移
+
+```javascript
+// 旧：独立 Perlin 漂移
+// p.vx += (noise(p.x * 0.01, time * 0.3) - 0.5) * 0.1;
+
+// 新：从风速场采样——和树/水面共享同一阵风
+const wind = windField(p.x, p.y, time, windStrength);
+p.vx += wind.vx * 0.1;  // 花粉被风推着走
+p.vy += wind.vy * 0.05; // 垂直分量更小——风主要水平吹
+```
+
+#### 蝴蝶 FSM 风向偏置
+
+```javascript
+// 蝴蝶的 targetAngle 被风推偏——它逆风飞行时更吃力
+const wind = windField(butterfly.x, butterfly.y, time, windStrength);
+butterfly.targetAngle += wind.vx * 0.05;  // 轻微的航向偏置
+butterfly.speed *= (1.0 - Math.abs(wind.vx) * 0.3);  // 逆风减速
+```
+
+### 17.4 统一 windStrength 来源
+
+`windStrength` 本身可以从概念种子偏置 + 一个慢速 Perlin 噪声驱动：
+
+```javascript
+// 全局风速——0.5~2.0 的自然波动
+function globalWindStrength(time) {
+  const base = 0.5 + noise(time * 0.1) * 1.5;  // 10 秒周期——风速自然变化
+  // 概念种子偏置：
+  //   Always Here: base * 0.5 (微风)
+  //   Windmill Valley: base (自然风)
+  //   Still Growth: base * 0.2 (几乎无风)
+  return base * CONCEPT_SEED_WIND_BIAS;
+}
+```
+
+### 17.5 何时不必用风速场
+
+| 场景 | 原因 |
+|------|------|
+| 赛博宠物（封闭容器） | 容器内无风——宠物 FSM 不依赖风 |
+| 像素盆栽（室内） | 室内微风——如果有，用一个全局标量就够了，不需要空间变化 |
+| 只有一个风驱动元素 | 单棵树或单层波浪——风速场的跨元素协调优势不存在 |
+| Ganzfeld 模式 | 无风——光场场景 |
+
+### 17.6 自检
+
+- [ ] 场景中所有风驱动元素从同一个 `windField()` 采样？
+- [ ] 大尺度噪声（持续风向）+ 小尺度噪声（阵风）双层叠加？
+- [ ] `windStrength` 从概念种子偏置（不同场景不同风力）？
+- [ ] 不同元素用了不同的振幅乘数（树 3px，花粉 0.1px，波浪 0.3 相位）？
+- [ ] 如果场景只有一个风驱动元素——风速场不是必需的（不要过度工程）？
+
+---
+
+## 十八、跨模型视觉密度校准
+
+> 设计哲学与 healing-space 跨路线情绪强度校准同构：不同算法在同一参数下产生不同的视觉输出 → 需要校准表在算法之间建立等价映射。
+
+### 18.1 问题
+
+4 种程序化模型对 `density` 参数的解释不同——同一个值产生截然不同的视觉密度：
+
+| 模型 | density 的实际含义 | density=0.5 时的实际像素保留率 |
+|------|-------------------|---------------------------|
+| **A**（堆叠摇摆） | 无 density 参数——段数控制视觉密度 | N/A |
+| **B**（网格剔除） | 每个格子的独立保留概率 | 50% |
+| **C**（圆域筛选） | **不读 density 参数**——内部硬编码 `random() > 0.15` | 85%（硬编码） |
+| **D**（扇形展开） | **不读 density 参数**——内部硬编码 `random() > 0.4` | 60%（硬编码） |
+
+**模型 C 和 D 的 density 参数不生效**——它们在自己代码中硬编码了筛选阈值。当场景混合使用多种模型时，不能传同一个 density 值。
+
+### 18.2 校准表
+
+**目标视觉密度 → 每个模型应该传的参数**：
+
+| 目标效果 | 视觉感受 | 模型 B density | 模型 C 阈值 | 模型 D 阈值 |
+|---------|---------|---------------|------------|------------|
+| **极疏**（大量透光/透气） | 轻雾、薄纱、远山树冠 | 0.2 | 0.40 | 0.60 |
+| **疏**（明显间隙） | 透光树冠、花簇 | 0.35 | 0.30 | 0.50 |
+| **中**（半密实） | 正常灌木、云朵 | 0.5 | 0.20 | 0.40 |
+| **密**（少量间隙） | 密实灌木、厚云 | 0.65 | 0.12 | 0.30 |
+| **极密**（几乎不透光） | 实心物体、岩石 | 0.8 | 0.06 | 0.20 |
+
+**使用方式**：不是直接传 density 值——是查表得到对应参数：
+
+```javascript
+// 目标：中密度灌木（模型 C 半球）
+const targetDensity = 'medium';  // 或 0.5
+const calibration = {
+  B: { sparse: 0.2, light: 0.35, medium: 0.5, dense: 0.65, solid: 0.8 },
+  C: { sparse: 0.40, light: 0.30, medium: 0.20, dense: 0.12, solid: 0.06 },
+  D: { sparse: 0.60, light: 0.50, medium: 0.40, dense: 0.30, solid: 0.20 },
+};
+
+// 查表——不传裸数字
+const thresholdC = calibration.C[targetDensity];  // 0.20
+drawRadialCluster(x, y, 10, px, palette, thresholdC);
+```
+
+### 18.3 模型 C/D 的改造建议
+
+如果修改 `code-templates.md` 中模型 C 和 D 的代码，让它们接受 density 参数（而非硬编码），可以直接使用统一 density 值：
+
+```javascript
+// 模型 C 改造——接受 density 参数
+function drawRadialCluster(baseX, baseY, radius, px, palette, density = 0.5) {
+  const threshold = 1.0 - density;  // density 0.5 → threshold 0.5
+  for (let dy = 0; dy < radius; dy++) {
+    let limit = round(sqrt(radius * radius - dy * dy));
+    for (let dx = -limit; dx <= limit; dx++) {
+      if (random() > threshold) {  // 原来: random() > 0.15
+        fill(random(palette));
+        rect(baseX + dx * px, baseY - dy * px, px, px);
+      }
+    }
+  }
+}
+
+// 模型 D 改造——接受 density 参数
+function drawFan(baseX, baseY, height, px, color1, color2, density = 0.5) {
+  const threshold = 1.0 - density;
+  for (let dy = 0; dy < height; dy++) {
+    let spread = round(dy * 0.8);
+    for (let dx = -spread; dx <= spread; dx++) {
+      if (random() > threshold || abs(dx) === spread) {  // 原来: random() > 0.4
+        fill(random() > 0.5 ? color1 : color2);
+        rect(baseX + dx * px, baseY - dy * px, px, px);
+      }
+    }
+  }
+}
+```
+
+**如果改造了模型 C/D，校准表仍然有用**——它告诉你不同模型的 density→视觉密度 映射曲线不同（模型 B 是线性、模型 C 是圆形面积、模型 D 是扇形面积），即使参数名统一了，同一个 density 值在不同模型下的视觉密度仍然不同。校准表是持久的。
+
+### 18.4 自检
+
+- [ ] 场景中同时使用多种模型时，没有传同一个裸 density 值？
+- [ ] 模型 C/D 的筛选阈值已对照校准表设置？
+- [ ] 如果模型 C/D 已被改造接受 density 参数——确认了改造版本在 `code-templates.md` 中？
