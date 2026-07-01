@@ -295,9 +295,12 @@ pixel-bloom/
 │   └── palettes.json                 # 6 套 Frutiger Aero 调色板
 │
 ├── references/
-│   ├── design-principles.md          # 架构决策 / 仿生运动三法则 / 材质 / 反模式 / Ganzfeld 模式
+│   ├── design-principles.md          # 22 节通用设计原则与反模式
 │   ├── generation-workflow.md        # STEP 0–3 执行细节 / 场景模式表 / 技术决策表
-│   ├── code-templates.md             # 防御性 HTML 骨架 / 4 种植物模型 / FSM 代码 / 质量清单
+│   ├── code-templates.md             # 防御性骨架 / 4 种植物模型 / FSM 代码 / 质量清单
+│   ├── landscape-composition.md      # 风景画纵深构图 7 层公式（开放场景触发）
+│   ├── vegetation-system.md          # 像素植被系统 — 物种表 / 分支生长 / 三级风
+│   ├── ocean-pixels.md               # 像素海洋 — Gerstner 波浪 / 焦散 / 河流模式
 │   ├── audio-engine.md               # Web Audio 合成配方（零音频文件）
 │   ├── audio-advanced.md             # 和弦垫 / 节拍器 / 五声音阶 / AudioWorklet / 空间混响
 │   └── seeded-exploration.md         # 种子导航 / 参数滑块面板 / 可分享 URL

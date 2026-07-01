@@ -126,7 +126,7 @@ const SPECIES = {
 ```
 
 **物种表使用规则**：
-- 每个物种的每个参数都是**区间**（min/max）——每棵树的实际值在区间内用 `rng()` 随机取值 = 物种内的个体差异
+- 每个物种的每个参数都是**区间**（min/max）——每棵树的实际值在区间内用 `random()` 随机取值 = 物种内的个体差异
 - 改 seed 不改物种 → 另一片同物种的树林（个体不同但仍是同一种）
 - 改物种不改 seed → 不同种类的树（用同一个随机序列生成）
 
@@ -147,7 +147,7 @@ const SPECIES = {
  */
 function growTree(sp, baseX, baseY, rng) {
   // 1. 树干
-  const trunkH = sp.trunk.heightMin + rng() * (sp.trunk.heightMax - sp.trunk.heightMin);
+  const trunkH = sp.trunk.heightMin + random() * (sp.trunk.heightMax - sp.trunk.heightMin);
   const trunk = {
     x: baseX, y: baseY,
     height: trunkH,
@@ -166,7 +166,7 @@ function growTree(sp, baseX, baseY, rng) {
     if (parent.level >= sp.branch.levels) continue;  // 到达最大层级
 
     const childCount = sp.branch.childCountMin +
-      Math.floor(rng() * (sp.branch.childCountMax - sp.branch.childCountMin + 1));
+      Math.floor(random() * (sp.branch.childCountMax - sp.branch.childCountMin + 1));
 
     for (let i = 0; i < childCount; i++) {
       const child = growBranch(parent, i, childCount, sp, rng);
@@ -187,14 +187,14 @@ function growBranch(parent, childIndex, totalChildren, sp, rng) {
   const slotCenter = sp.branch.emergenceLo +
     (childIndex + 0.5) / totalChildren * emergenceRange;
   // 加微小随机偏移——避免子分支排成完美等距线
-  const emergenceT = slotCenter + (rng() - 0.5) * emergenceRange / totalChildren * 0.5;
+  const emergenceT = slotCenter + (random() - 0.5) * emergenceRange / totalChildren * 0.5;
 
   // 角度置换——每个子分支绕父分支的旋转角度不同
   const baseTwist = (childIndex / totalChildren) * 360;
-  const twist = baseTwist + (rng() - 0.5) * sp.branch.twistMax;
+  const twist = baseTwist + (random() - 0.5) * sp.branch.twistMax;
 
   // 分叉角度——在物种范围内随机
-  const angle = sp.branch.angleMin + rng() * (sp.branch.angleMax - sp.branch.angleMin);
+  const angle = sp.branch.angleMin + random() * (sp.branch.angleMax - sp.branch.angleMin);
   const angleRad = (angle * Math.PI) / 180;
 
   // 父分支在出芽点的位置
@@ -210,15 +210,15 @@ function growBranch(parent, childIndex, totalChildren, sp, rng) {
   };
   // 应用扭曲扰动
   const gnarl = sp.branch.gnarliness;
-  childDir.x += (rng() - 0.5) * gnarl * 2;
-  childDir.y += (rng() - 0.5) * gnarl * 2;
+  childDir.x += (random() - 0.5) * gnarl * 2;
+  childDir.y += (random() - 0.5) * gnarl * 2;
   // 归一化
   const len = Math.sqrt(childDir.x ** 2 + childDir.y ** 2);
   childDir.x /= len;
   childDir.y /= len;
 
   // 子分支长度与粗细——按比例从父分支继承
-  const childLen = parentLen * sp.branch.lengthRatio * (0.85 + rng() * 0.3);
+  const childLen = parentLen * sp.branch.lengthRatio * (0.85 + random() * 0.3);
   const childRadius = Math.max(1, Math.round(parent.radius * sp.branch.radiusRatio));
 
   return {
@@ -281,11 +281,11 @@ function generateCanopy(tree, sp, px, rng) {
 
       for (let gx = -Math.round(rowW); gx <= Math.round(rowW); gx++) {
         // 网格剔除
-        if (rng() > canopy.density) continue;
+        if (random() > canopy.density) continue;
 
         // 颜色从调色板中按高度加权选取
         const t = gy / gridH;
-        const ci = Math.floor(t * (canopy.colors.length - 1) + rng() * 1.5);
+        const ci = Math.floor(t * (canopy.colors.length - 1) + random() * 1.5);
         const color = canopy.colors[Math.min(ci, canopy.colors.length - 1)];
 
         pixels.push({
@@ -301,8 +301,8 @@ function generateCanopy(tree, sp, px, rng) {
     for (let dy = 0; dy < r; dy++) {
       const limit = Math.round(Math.sqrt(r * r - dy * dy));
       for (let dx = -limit; dx <= limit; dx++) {
-        if (rng() > canopy.density) continue;
-        const ci = Math.floor((dy / r) * (canopy.colors.length - 1) + rng());
+        if (random() > canopy.density) continue;
+        const ci = Math.floor((dy / r) * (canopy.colors.length - 1) + random());
         pixels.push({
           x: tree.trunk.x + dx * px,
           y: tree.trunk.y - tree.trunk.height - dy * px,
@@ -317,14 +317,14 @@ function generateCanopy(tree, sp, px, rng) {
     if (branch.level < tree.trunk.level + 1) continue;  // 最粗的近干分支不加——那是结构枝
     const tipX = branch.x + branch.direction.x * branch.height;
     const tipY = branch.y + branch.direction.y * branch.height;
-    const tipCount = Math.floor(3 + rng() * 6);
+    const tipCount = Math.floor(3 + random() * 6);
     for (let i = 0; i < tipCount; i++) {
-      const angle = rng() * Math.PI * 2;
-      const dist = rng() * 3 * px;
+      const angle = random() * Math.PI * 2;
+      const dist = random() * 3 * px;
       pixels.push({
         x: Math.round(tipX + Math.cos(angle) * dist),
         y: Math.round(tipY + Math.sin(angle) * dist),
-        color: canopy.colors[Math.floor(rng() * canopy.colors.length)],
+        color: canopy.colors[Math.floor(random() * canopy.colors.length)],
       });
     }
   }
@@ -342,6 +342,8 @@ function generateCanopy(tree, sp, px, rng) {
 ---
 
 ## 五、三级像素风
+
+> **全场景风元素统一数据源**：本节的全局 `WIND` 对象和 `windIntensity()` 是 pixel-bloom 中所有风驱动元素（树/水面波纹/花粉粒子/蝴蝶）的统一采样源。非树木元素从同一个 `WIND` 对象读取 `strength`/`speed`/`angle`，确保"同一阵风"的一致性——详见 `design-principles.md §十七`。
 
 **风不是一棵树的属性——是三种不同尺度的像素偏移，分别作用于叶、枝、干。**
 
@@ -455,6 +457,8 @@ function drawTree(tree, canopyPixels, sp, px) {
 
 当前三级风每个级别用单一 `sin(time * freq)` 驱动——这在单棵树时足够，但多棵树时缺乏**空间传播感**（"风以波的形式扫过田野"）。引入四组分频率叠加：
 
+> `hf()` 确定性 hash 函数定义见 `seeded-exploration.md`。
+
 ```javascript
 /**
  * 四组分风强计算 —— 替代单频 sin，用于所有风级别
@@ -465,8 +469,8 @@ function drawTree(tree, canopyPixels, sp, px) {
  * @returns {number} 归一化风强 0~1（驱动各级振幅）
  */
 function windIntensity(x, elemIdx, time, w) {
-  const bladePhase = hash(elemIdx) * Math.PI * 2;
-  const ampVar = 0.65 + hash(elemIdx + 7) * 0.7;  // 0.65-1.35
+  const bladePhase = hf(elemIdx) * Math.PI * 2;
+  const ampVar = 0.65 + hf(elemIdx + 7) * 0.7;  // 0.65-1.35
   
   // 空间相位：沿 X 轴的投影决定阵风到达时间
   const along = x * w.gustScale;
@@ -495,7 +499,7 @@ function windIntensity(x, elemIdx, time, w) {
 |---|---|---|
 | 相邻两棵树 | 相位取决于各自 `twist` 随机值——可能同步也可能反向 | 相位由世界 X 坐标决定——相邻的树自然相近，远处的树错相 |
 | 阵风感 | 无——风强均匀 | 有——阵风以波的形式扫过，间歇性强风 |
-| 逐树差异 | 仅 `twist` 偏移 | `hash(idx)` 振幅变异 + `hash(idx+7)` 相位偏移 + 空间相位 |
+| 逐树差异 | 仅 `twist` 偏移 | `hf(idx)` 振幅变异 + `hf(idx+7)` 相位偏移 + 空间相位 |
 
 **⚠️ 2D 像素适配注意事项**：
 - 圆形弧线弯曲公式（`u = R(1-cos a)`, `dv = R·sin a - dy`）是 3D 的——在 2D 像素画中**只使用水平偏移分量**，忽略垂直下垂（`dv`）。2D 侧视图中"叶片弯曲时的垂直缩短"用 `scaleY` 调整而非 `dv`。
@@ -507,14 +511,16 @@ function windIntensity(x, elemIdx, time, w) {
 
 **升级**：每棵树的基础相位由其在场景中的 X 坐标决定：
 
+> `hf()` 确定性 hash 函数定义见 `seeded-exploration.md`。
+
 ```javascript
 // 替换：tree.trunkSwayOffset = sin(time * freq + tree.twist)
 // 为：
-function treePhase(tree, time, windParams) {
+function treePhase(tree, time, WIND) {  // WIND 对象定义见 §5.3
   // 基础相位：世界 X 坐标 → 阵风到达时间
-  const spatialPhase = tree.trunk.x * windParams.gustScale;
-  // 逐树微调：hash(treeIdx) 提供小幅个体差异（不是完全独立）
-  const individualShift = hash(tree.index) * 0.3;  // 仅 ±0.15π
+  const spatialPhase = tree.trunk.x * WIND.gustScale;
+  // 逐树微调：hf(treeIdx) 提供小幅个体差异（不是完全独立）
+  const individualShift = hf(tree.index) * 0.3;  // 仅 ±0.15π
   return spatialPhase + individualShift;
 }
 ```
@@ -594,7 +600,7 @@ function generateGrove(count, speciesKey, groundY, areaW, px, rng) {
     let x;
     let attempts = 0;
     do {
-      x = areaW * 0.1 + rng() * areaW * 0.8;  // 左右留 10% 边距
+      x = areaW * 0.1 + random() * areaW * 0.8;  // 左右留 10% 边距
       attempts++;
     } while (
       attempts < 20 &&
@@ -602,7 +608,7 @@ function generateGrove(count, speciesKey, groundY, areaW, px, rng) {
     );
 
     // 深浅排序：远处的树（小、浅）= 先画。近处的树（大、深）= 后画
-    const depthFactor = 0.6 + rng() * 0.4;  // 0.6=远（小）, 1.0=近（大）
+    const depthFactor = 0.6 + random() * 0.4;  // 0.6=远（小）, 1.0=近（大）
     // 缩放整个物种参数的基准 px
     const scaledPx = Math.round(px * depthFactor);
 
@@ -636,13 +642,13 @@ function generateGrove(count, speciesKey, groundY, areaW, px, rng) {
 
 | # | 反模式 | 级别 | 表现 | 修复 |
 |---|--------|------|------|------|
-| 1 | 所有树同一高度 | 致命 | 森林像梳子——树顶齐平 | 用物种表的 heightMin/heightMax 区间 + rng() |
+| 1 | 所有树同一高度 | 致命 | 森林像梳子——树顶齐平 | 用物种表的 heightMin/heightMax 区间 + random() |
 | 2 | 分叉同一高度 | 致命 | 树干顶部同时分出 3 根等长枝 | 分层槽位 + 随机偏移（§三 `growBranch`） |
 | 3 | 实心树冠无间隙 | 致命 | 绿色实心块——不真实 | `density` < 0.6 → 像素有间隙 = 透光 |
 | 4 | 同步风摆动 | 致命 | 所有树同时左同时右 | 三级风 + 每像素/每枝独立相位（§五） |
 | 5 | 树排列成行 | 警告 | 人工种植园，不是森林 | 拒绝采样（§六 `generateGrove`） |
 | 6 | 改 seed 变物种 | 警告 | seed=42 松树，seed=99 柳树 | seed 控制个体差异，speciesKey 控制物种身份 |
-| 7 | 同一颜色无变异 | 警告 | 每棵树颜色完全相同 | 调色板 + rng() 选色 + 高度加权 |
+| 7 | 同一颜色无变异 | 警告 | 每棵树颜色完全相同 | 调色板 + random() 选色 + 高度加权 |
 | 8 | 20 棵树 60fps→15fps | 警告 | 像素数无预算控制 | 远树 `depthFactor` 缩像素单位 = 减少总像素数 |
 | 9 | 树冠在分支之前生成 | 致命 | 树冠位置和分支终点不对齐 | `generateCanopy()` 在所有分支生成后调用 |
 
@@ -651,7 +657,7 @@ function generateGrove(count, speciesKey, groundY, areaW, px, rng) {
 ## 八、自检清单
 
 - [ ] 使用了物种表（不是硬编码一棵树）？
-- [ ] 每棵树的参数在 min/max 区间内用 rng() 取值？
+- [ ] 每棵树的参数在 min/max 区间内用 random() 取值？
 - [ ] 分支用队列迭代，非递归？
 - [ ] 子分支通过分层槽位 + 角度置换分布在不同的高度/角度？
 - [ ] 树冠在分支拓扑稳定后统一生成（不是边生分支边加叶子）？

@@ -140,7 +140,7 @@ html,body{touch-action:none;user-select:none;-webkit-user-select:none}
 ## 六、色彩
 
 - 预设调色板数组，不为每个物体独立 random RGB
-- Frutiger Aero 底色：`linear-gradient(160deg,#a8e6f8,#cdf0fa,#e4f8f0,#f4fcf9)`
+- Frutiger Aero 底色：柔和粉彩渐变，权威值见 `assets/palettes.json` 的 `base_gradient`
 - 场景内 2-3 套调色板统一色调
 
 ### 6.1 空间相干颜色变化（去 random，用 noise field）
@@ -701,9 +701,9 @@ FSM 生命体和粒子系统在长时间运行后是否退化：
 
 ---
 
-## 十七、像素风速场 — 全场景风元素统一采样
+## 十七、全场景风元素统一采样
 
-> 设计哲学源自 OceanThreejs 的"位移场→一切"：泡沫/法线/颜色都从同一个底层场派生。适配到 pixel-bloom：**所有被风驱动的像素元素——树 sway、水面波浪、花粉粒子、蝴蝶——从同一个 Perlin 风速场 `windField(x, y, time)` 采样。**
+> 设计哲学源自 OceanThreejs 的"位移场→一切"：泡沫/法线/颜色都从同一个底层场派生。适配到 pixel-bloom：**所有被风驱动的像素元素——树 sway、水面波浪、花粉粒子、蝴蝶——从 vegetation-system.md §五 的同一套风系统采样。**
 
 ### 17.1 为什么需要共享风场
 
@@ -711,221 +711,39 @@ FSM 生命体和粒子系统在长时间运行后是否退化：
 
 反模式场景：树同时向左歪（sin 同步）、水面波浪向右涌（相位偏移不同）、花粉向下漂（noise 梯度方向）→ 三个"风驱动"元素在互相矛盾。用户不会说"风场不统一"——用户会说"感觉不自然"。
 
-### 17.2 风速场定义
+### 17.2 统一实现：vegetation-system.md §五 的 WIND 对象
 
-```javascript
-/**
- * 像素风速场——全场景共享
- * @param {number} x - 世界 X 坐标（像素空间）
- * @param {number} y - 世界 Y 坐标
- * @param {number} time - 全局时间（秒）
- * @param {number} strength - 全局风速 0~1（从概念种子偏置或外部 Perlin 噪声驱动）
- * @returns {{vx: number, vy: number}} 风速向量（-1~1 范围，未乘振幅）
- */
-function windField(x, y, time, strength = 1.0) {
-  // 双层 Perlin 噪声——大尺度风带 + 小尺度阵风
-  const sx1 = x * 0.005;
-  const sy1 = y * 0.005;
-  const sx2 = x * 0.02;
-  const sy2 = y * 0.02;
+**全场景风元素的唯一数据源**是 `vegetation-system.md §五` 定义的全局 `WIND` 对象（`strength`/`speed`/`angle`/`gustScale`/`turbulence`/`flutter`）和 `windIntensity(x, idx, time, WIND)` 函数。树木的三级风（叶颤/枝摇/干摆）由 `applyWind()` 驱动；其他元素从同一个 `WIND` 对象采样：
 
-  const t = time * 0.3;  // 风速变化速度
+| 元素 | 采样方式 | 来源 |
+|------|---------|------|
+| 树 sway — 三级风 | `applyWind(tree, canopyPixels, WIND.strength, time, px)` | vegetation-system.md §五 |
+| 水面波浪 phaseShift | `const shift = WIND.strength * 0.3;` 叠加到波浪 theta | 从 WIND 采样 |
+| 花粉/粒子漂移 | `p.vx += WIND.strength * 0.1;` 共享风强 | 从 WIND 采样 |
+| 蝴蝶 FSM 航向偏置 | `butterfly.targetAngle += WIND.strength * 0.05;` | 从 WIND 采样 |
 
-  // 大尺度——持续风向（变化慢）
-  const vx1 = noise(sx1 + t, sy1) * 2 - 1;
-  const vy1 = noise(sx1 + t + 100, sy1 + 100) * 2 - 1;
+**关键原则**：所有元素读取同一个 `WIND` 对象——WIND 在每帧通过 `updateWind(time)` 更新（见 vegetation-system.md §5.3），确保"同一阵风"的一致性。不同元素通过**不同的振幅乘数**体现不同响应（树 3px、花粉 0.1px、波浪 0.3 phase），而非各自定义独立的风参数。
 
-  // 小尺度——阵风（变化快）
-  const vx2 = (noise(sx2 - t * 2, sy2) - 0.5) * 1.5;
-  const vy2 = (noise(sx2 - t * 2 + 50, sy2 + 50) - 0.5) * 1.5;
-
-  // 混合：大尺度 70% + 小尺度 30%
-  return {
-    vx: (vx1 * 0.7 + vx2 * 0.3) * strength,
-    vy: (vy1 * 0.7 + vy2 * 0.3) * strength,
-  };
-}
-```
-
-**关键设计**：
-- **双层噪声**：大尺度（0.005）产生持续风向——一整片区域的元素朝同一方向偏。小尺度（0.02）产生阵风——单棵树可能有额外的微颤
-- **time 乘以不同的系数**：大尺度变化慢（`*0.3`），小尺度变化快（`*2`）→ 风向整体持续但不断有小阵风叠加
-- **返回向量，非标量**：风向 + 强度在一个返回值中——元素可以计算"风在推我往哪个方向"
-
-### 17.3 各元素从风速场采样
-
-#### 树 sway（替代 vegetation-system.md §五 的独立 sin）
-
-```javascript
-// 旧：每棵树独立 sin
-// tree.swayOffset = sin(time * 1.5 + tree.phase) * 3.0 * windStrength;
-
-// 新：从风速场采样——同一阵风，不同树有不同偏移
-const wind = windField(tree.trunk.x, tree.trunk.y, time, windStrength);
-tree.swayOffset = wind.vx * 3.0;  // 树干 sway ±3px
-// 叶颤：叠加风速场的小尺度高频——直接用 noise 的第二层
-const gust = windField(tree.trunk.x + 5, tree.trunk.y + 5, time, windStrength);
-tree.leafFlutter = gust.vx * 1.0;  // 叶颤 ±1px
-```
-
-#### 水面波浪相位偏移（替代 ocean-pixels.md 的独立 speed）
-
-```javascript
-// 旧：每条波浪独立 speed
-// const theta = wave.freq * x + wave.speed * time + wave.phase;
-
-// 新：从风速场采样——风的局部方向影响波浪相位
-const wind = windField(x, horizonY, time, windStrength);
-const phaseShift = wind.vx * 0.3;  // 风向改变波浪的视觉相位
-const theta = wave.freq * x + wave.speed * time + wave.phase + phaseShift;
-```
-
-#### 花粉/粒子漂移
-
-```javascript
-// 旧：独立 Perlin 漂移
-// p.vx += (noise(p.x * 0.01, time * 0.3) - 0.5) * 0.1;
-
-// 新：从风速场采样——和树/水面共享同一阵风
-const wind = windField(p.x, p.y, time, windStrength);
-p.vx += wind.vx * 0.1;  // 花粉被风推着走
-p.vy += wind.vy * 0.05; // 垂直分量更小——风主要水平吹
-```
-
-#### 蝴蝶 FSM 风向偏置
-
-```javascript
-// 蝴蝶的 targetAngle 被风推偏——它逆风飞行时更吃力
-const wind = windField(butterfly.x, butterfly.y, time, windStrength);
-butterfly.targetAngle += wind.vx * 0.05;  // 轻微的航向偏置
-butterfly.speed *= (1.0 - Math.abs(wind.vx) * 0.3);  // 逆风减速
-```
-
-### 17.4 统一 windStrength 来源
-
-`windStrength` 本身可以从概念种子偏置 + 一个慢速 Perlin 噪声驱动：
-
-```javascript
-// 全局风速——0.5~2.0 的自然波动
-function globalWindStrength(time) {
-  const base = 0.5 + noise(time * 0.1) * 1.5;  // 10 秒周期——风速自然变化
-  // 概念种子偏置：
-  //   Always Here: base * 0.5 (微风)
-  //   Windmill Valley: base (自然风)
-  //   Still Growth: base * 0.2 (几乎无风)
-  return base * CONCEPT_SEED_WIND_BIAS;
-}
-```
-
-### 17.5 何时不必用风速场
+### 17.3 何时不必用共享风场
 
 | 场景 | 原因 |
 |------|------|
 | 赛博宠物（封闭容器） | 容器内无风——宠物 FSM 不依赖风 |
 | 像素盆栽（室内） | 室内微风——如果有，用一个全局标量就够了，不需要空间变化 |
-| 只有一个风驱动元素 | 单棵树或单层波浪——风速场的跨元素协调优势不存在 |
+| 只有一个风驱动元素 | 单棵树或单层波浪——跨元素协调优势不存在 |
 | Ganzfeld 模式 | 无风——光场场景 |
 
-### 17.6 自检
+### 17.4 自检
 
-- [ ] 场景中所有风驱动元素从同一个 `windField()` 采样？
-- [ ] 大尺度噪声（持续风向）+ 小尺度噪声（阵风）双层叠加？
-- [ ] `windStrength` 从概念种子偏置（不同场景不同风力）？
-- [ ] 不同元素用了不同的振幅乘数（树 3px，花粉 0.1px，波浪 0.3 相位）？
-- [ ] 如果场景只有一个风驱动元素——风速场不是必需的（不要过度工程）？
-
----
-
-## 十八、跨模型视觉密度校准
-
-> 设计哲学与 healing-space 跨路线情绪强度校准同构：不同算法在同一参数下产生不同的视觉输出 → 需要校准表在算法之间建立等价映射。
-
-### 18.1 问题
-
-4 种程序化模型对 `density` 参数的解释不同——同一个值产生截然不同的视觉密度：
-
-| 模型 | density 的实际含义 | density=0.5 时的实际像素保留率 |
-|------|-------------------|---------------------------|
-| **A**（堆叠摇摆） | 无 density 参数——段数控制视觉密度 | N/A |
-| **B**（网格剔除） | 每个格子的独立保留概率 | 50% |
-| **C**（圆域筛选） | **不读 density 参数**——内部硬编码 `random() > 0.15` | 85%（硬编码） |
-| **D**（扇形展开） | **不读 density 参数**——内部硬编码 `random() > 0.4` | 60%（硬编码） |
-
-**模型 C 和 D 的 density 参数不生效**——它们在自己代码中硬编码了筛选阈值。当场景混合使用多种模型时，不能传同一个 density 值。
-
-### 18.2 校准表
-
-**目标视觉密度 → 每个模型应该传的参数**：
-
-| 目标效果 | 视觉感受 | 模型 B density | 模型 C 阈值 | 模型 D 阈值 |
-|---------|---------|---------------|------------|------------|
-| **极疏**（大量透光/透气） | 轻雾、薄纱、远山树冠 | 0.2 | 0.40 | 0.60 |
-| **疏**（明显间隙） | 透光树冠、花簇 | 0.35 | 0.30 | 0.50 |
-| **中**（半密实） | 正常灌木、云朵 | 0.5 | 0.20 | 0.40 |
-| **密**（少量间隙） | 密实灌木、厚云 | 0.65 | 0.12 | 0.30 |
-| **极密**（几乎不透光） | 实心物体、岩石 | 0.8 | 0.06 | 0.20 |
-
-**使用方式**：不是直接传 density 值——是查表得到对应参数：
-
-```javascript
-// 目标：中密度灌木（模型 C 半球）
-const targetDensity = 'medium';  // 或 0.5
-const calibration = {
-  B: { sparse: 0.2, light: 0.35, medium: 0.5, dense: 0.65, solid: 0.8 },
-  C: { sparse: 0.40, light: 0.30, medium: 0.20, dense: 0.12, solid: 0.06 },
-  D: { sparse: 0.60, light: 0.50, medium: 0.40, dense: 0.30, solid: 0.20 },
-};
-
-// 查表——不传裸数字
-const thresholdC = calibration.C[targetDensity];  // 0.20
-drawRadialCluster(x, y, 10, px, palette, thresholdC);
-```
-
-### 18.3 模型 C/D 的改造建议
-
-如果修改 `code-templates.md` 中模型 C 和 D 的代码，让它们接受 density 参数（而非硬编码），可以直接使用统一 density 值：
-
-```javascript
-// 模型 C 改造——接受 density 参数
-function drawRadialCluster(baseX, baseY, radius, px, palette, density = 0.5) {
-  const threshold = 1.0 - density;  // density 0.5 → threshold 0.5
-  for (let dy = 0; dy < radius; dy++) {
-    let limit = round(sqrt(radius * radius - dy * dy));
-    for (let dx = -limit; dx <= limit; dx++) {
-      if (random() > threshold) {  // 原来: random() > 0.15
-        fill(random(palette));
-        rect(baseX + dx * px, baseY - dy * px, px, px);
-      }
-    }
-  }
-}
-
-// 模型 D 改造——接受 density 参数
-function drawFan(baseX, baseY, height, px, color1, color2, density = 0.5) {
-  const threshold = 1.0 - density;
-  for (let dy = 0; dy < height; dy++) {
-    let spread = round(dy * 0.8);
-    for (let dx = -spread; dx <= spread; dx++) {
-      if (random() > threshold || abs(dx) === spread) {  // 原来: random() > 0.4
-        fill(random() > 0.5 ? color1 : color2);
-        rect(baseX + dx * px, baseY - dy * px, px, px);
-      }
-    }
-  }
-}
-```
-
-**如果改造了模型 C/D，校准表仍然有用**——它告诉你不同模型的 density→视觉密度 映射曲线不同（模型 B 是线性、模型 C 是圆形面积、模型 D 是扇形面积），即使参数名统一了，同一个 density 值在不同模型下的视觉密度仍然不同。校准表是持久的。
-
-### 18.4 自检
-
-- [ ] 场景中同时使用多种模型时，没有传同一个裸 density 值？
-- [ ] 模型 C/D 的筛选阈值已对照校准表设置？
-- [ ] 如果模型 C/D 已被改造接受 density 参数——确认了改造版本在 `code-templates.md` 中？
+- [ ] 场景中所有风驱动元素是否从同一个 `WIND` 对象读取 `strength`（非各自独立 `sin`/`noise`）？
+- [ ] 树木是否使用 `vegetation-system.md §五` 的 `applyWind()`（三级频率：叶颤/枝摇/干摆）？
+- [ ] 不同元素是否用了不同的振幅乘数（树 3px，花粉 0.1px，波浪 0.3 phase）——共享风场，不共享振幅？
+- [ ] `WIND.strength` 是否与概念种子偏置一致（§十六）？
+- [ ] 如果场景只有一个风驱动元素——共享风场不是必需的（不要过度工程）？
 
 ---
 
-## 十九、大面积填充性能铁律（Full-Surface Fill）
+## 十八、大面积填充性能铁律（Full-Surface Fill）
 
 > 开放风景场景的天空/地形/水面/稻田——任何需要覆盖 ≥ 30% 画布的区域——禁止用 `rect()` 逐格填充。三条铁律覆盖所有场景。
 
@@ -998,7 +816,7 @@ endShape(CLOSE);
 
 ---
 
-## 二十、像素星空与夜景天空
+## 十九、像素星空与夜景天空
 
 > 设计哲学源自 threejs-environment-water-and-sky 的星星自动显现和大气消光模型。星星的可见性不由 `if (isNight)` 二元切换——从天空亮度连续派生。星星在天顶密集、地平线稀疏——用 `pow(heightRatio, 3.5)` 模拟大气消光。适配到 Pixel Bloom：纯 Canvas2D 像素绘制，确定性 hash 生成星点位置，Perlin 微动模拟闪烁。
 
@@ -1143,170 +961,15 @@ const NIGHT_SKY_BOT = '#1a2a3a';    // 稍浅——地平线光污染
 - [ ] 白天是否跳过绘制（`starsAlpha <= 0.01` 守卫）？
 - [ ] 星空是否与场景其他元素（月亮、云彩）协调共存？
 
----
+### 20.8 夜景元素的统一数据派生
 
-## 二十一、像素云彩 — 模型 B 网格剔除复用
-
-> Pixel Bloom 已有程序化植物模型 A-D（`code-templates.md`）。模型 B（网格剔除）的原始描述是"灌木、云朵、海绵、草丛"——云彩从一开始就是设计目标。本节是模型 B 在云彩场景上的参数调优指南。
-
-### 21.1 模型 B 云彩适配
+所有夜景元素从 `skyBrightness` 连续派生——不引入额外的二元状态（`isNight`/`isDusk`）：
 
 ```javascript
-/**
- * 像素云彩 — 模型 B（网格剔除）适配
- * 和树冠/灌木使用同一算法，仅参数不同
- * 
- * @param {number} x, y — 云彩中心坐标
- * @param {number} width, height — 云彩边界框
- * @param {number} px — 像素单位
- * @param {Array} palette — 颜色数组（白色到淡灰蓝）
- * @param {number} density — 密度 0-1（0.3-0.5 适合蓬松云）
- * @param {number} seed — 确定性种子
- */
-function drawCloud(x, y, width, height, px, palette, density, seed) {
-  for (let dy = -height/2; dy < height/2; dy += px) {
-    for (let dx = -width/2; dx < width/2; dx += px) {
-      // Perlin 噪声密度场 — 与模型 B 完全相同
-      const nx = (x + dx) * 0.04;
-      const ny = (y + dy) * 0.04;
-      const n = noise(nx, ny);
-      
-      // 云彩的噪声阈值偏低（比树冠更"散开"）
-      const threshold = 1.0 - density;
-      if (n < threshold) continue;
-      
-      // 云彩边缘：噪声值越高 → 越白（云心），越低 → 越透明/灰蓝（云边）
-      const edgeSoftness = (n - threshold) / (1.0 - threshold);
-      const colorIdx = Math.floor(edgeSoftness * (palette.length - 1));
-      
-      fill(palette[constrain(colorIdx, 0, palette.length - 1)]);
-      rect(Math.round(x + dx), Math.round(y + dy), px, px);
-    }
-  }
-}
+const fireflyAlpha  = clamp((0.4 - skyBrightness) * 4, 0, 1) * (0.5 + sin(time * 0.3) * 0.5);
+const glowPlantAlpha = clamp((0.3 - skyBrightness) * 3, 0, 1);
+const moonAlpha      = clamp((0.25 - skyBrightness) * 4, 0, 1) * moonPhase;
 ```
 
-### 21.2 云彩 vs 树冠的关键参数差异
+**⚠️ 伪数据驱动反模式**：`skyBrightness < 0.2 ? 1.0 : 0.0` 是二元分支伪装——用 `clamp` 提供连续过渡区间。
 
-| 参数 | 树冠 | 云彩 | 原因 |
-|------|------|------|------|
-| `density` | 0.4–0.65 | 0.3–0.5 | 云更蓬松——内部透光，需要更多间隙 |
-| 噪声频率 | 0.06–0.10 | 0.03–0.06 | 云的空间尺度更大——低频噪声 = 大块云团 |
-| 调色板 | 绿色系（3-4 色） | 白→淡灰蓝→淡灰（3-5 色） | 云是白色的，但需要灰蓝表示阴影和深度 |
-| 边界框比例 | 高 > 宽（树是竖直的） | 宽 > 高（云是水平的） | 云是横向延展的——宽高比 2:1 到 3:1 |
-
-### 21.3 云彩调色板
-
-```javascript
-// 白云（晴天） — Frutiger Aero 粉彩白
-const CLOUD_WHITE = ['#f8fafc', '#e8f0f8', '#d0dce8', '#b8c8d8'];
-// 夕阳云 — 暖色
-const CLOUD_SUNSET = ['#fce8d8', '#f8d8c0', '#f0c8a8', '#e8b890'];
-// 阴云/雨云 — 灰蓝
-const CLOUD_GRAY = ['#d8dce4', '#c0c8d4', '#a8b4c4', '#909cb0'];
-// 夜云 — 半透明暗色（配合月华）
-const CLOUD_NIGHT = ['#1a2440', '#182238', '#162034', '#141e30'];
-```
-
-### 21.4 多朵云彩的空间编排
-
-```javascript
-// 多朵云在天空中的布局 — 非均匀，有大有小
-function generateClouds(seed, horizonY, count = 5) {
-  const clouds = [];
-  for (let i = 0; i < count; i++) {
-    // 确定性位置
-    const x = hf(seed + i * 71) * width;
-    const y = hf(seed + i * 73 + 17) * horizonY * 0.7;  // 云在天空的上 70%
-    const w = (40 + hf(seed + i * 79 + 31) * 120);       // 宽 40-160px
-    const h = (20 + hf(seed + i * 83 + 37) * 50);        // 高 20-70px
-    const density = 0.3 + hf(seed + i * 89 + 41) * 0.2;  // 0.3-0.5
-    const paletteIdx = Math.floor(hf(seed + i * 97 + 53) * CLOUD_PALETTES.length);
-    clouds.push({ x, y, w, h, density, palette: CLOUD_PALETTES[paletteIdx] });
-  }
-  // 按 Y 排序——远处的云先画（被近处的云遮挡）
-  clouds.sort((a, b) => a.y - b.y);
-  return clouds;
-}
-```
-
-### 21.5 自检
-
-- [ ] 云彩是否使用模型 B（网格剔除 + Perlin 噪声密度场）而非 `ellipse()` 叠加？
-- [ ] 云彩的宽高比是否横向（宽 > 高），和树冠相反？
-- [ ] 是否使用了云彩专用调色板（非绿色植物色板）？
-- [ ] 多朵云是否按 Y 排序绘制（远处先画）？
-
----
-
-## 二十二、数据驱动状态派生原则
-
-> 设计哲学源自 threejs-environment-water-and-sky 的星星自动显现模式：`visible = f(data)`，不是 `if(state) toggle()`。二元状态切换是视觉 bug 的温床——边界闪烁、忘记更新某个分支的标志、"开关式"跳变。数据驱动的连续函数消除全部三个问题。
-
-### 22.1 核心原则
-
-```
-❌ 状态驱动（不要）：
-   if (isNight) { drawStars(); } else { hideStars(); }
-   → 需要同步 isNight 和天空颜色两个独立状态
-   → 黄昏时 isNight 可能和天空颜色不同步
-   → "开关式"跳变
-
-✅ 数据驱动（要）：
-   starsAlpha = clamp((0.35 - skyBrightness) * 5.0, 0, 1)
-   → 单一真相源：天空亮度
-   → 星星可见性是天空亮度的连续函数
-   → 平滑过渡，无闪烁
-```
-
-### 22.2 Pixel Bloom 中的应用场景
-
-| 场景 | 数据源 | 派生公式 | 替代的二元状态 |
-|------|--------|---------|-------------|
-| 星星可见性 | `skyBrightness` | `clamp((0.35 - sb) * 5, 0, 1)` | `isNight` |
-| 萤火虫出现 | `skyBrightness` + `time` | `clamp((0.4 - sb) * 4, 0, 1) * (0.5 + sin(t*0.3)*0.5)` | `isDusk` |
-| 夜光植物发光 | `skyBrightness` | `clamp((0.3 - sb) * 3, 0, 1)` | `isDark` |
-| 月亮可见性 | `skyBrightness` + `moonPhase` | `clamp((0.25 - sb) * 4, 0, 1) * moonBrightness` | `isNight && hasMoon` |
-| Ganzfeld 色温 | `time` | `lerp(warmPalette, coolPalette, sin(t * 0.1) * 0.5 + 0.5)` | `colorPhase` enum |
-| 生物行为模式 | `hunger` + `time` + `proximityToUser` | 各行为权重的加权和 → 最 "urgent" 的行为激活 | `state: 'idle' \| 'hungry' \| 'playing'` |
-
-### 22.3 smoothstep — 数据驱动的过渡工具
-
-`smoothstep(edge0, edge1, x)` 是数据驱动状态派生的核心工具。它在 `[edge0, edge1]` 区间内产生平滑的 S 曲线过渡，而不是硬阈值。
-
-```javascript
-// ❌ 硬阈值（二元状态思维）
-const isActive = calm > 0.7;  // calm=0.69 → 无, calm=0.71 → 有 —— 跳变
-
-// ✅ smoothstep（数据驱动思维）
-const activeAlpha = smoothstep(0.5, 0.8, calm);  // calm=0.5–0.8 → 平滑过渡
-```
-
-### 22.4 与现有原则的关系
-
-| 现有原则 | 关系 |
-|---------|------|
-| 仿生运动三法则 | 数据驱动状态派生是"灵魂漫游"（Perlin noise）在状态机维度的等价——不跳变 |
-| Frutiger Aero 色彩纪律 | FRUTIGER AERO 禁止硬对比——数据驱动的平滑过渡是色彩纪律在时间维度的延伸 |
-| 概念种子→参数偏置（§十六） | 偏置表定义的是"倾向"（暖+20%），不是"开关"（暖/冷）——数据驱动思维已隐含在其中 |
-
-### 22.5 ⚠️ 伪数据驱动（反模式）
-
-```javascript
-// ❌ 这是二元分支伪装成数据驱动
-const alpha = skyBrightness < 0.2 ? 1.0 : 0.0;
-// → 和 if(isNight) 完全等价 —— 只是把 if 写成了三元运算符
-
-// ✅ 真正的数据驱动
-const alpha = clamp((0.35 - skyBrightness) * 5.0, 0, 1);
-// → 过渡区间 0.15–0.35，从 1 平滑到 0 —— 没有阈值
-```
-
-**判断标准**：如果公式中存在 `<` / `>` / `? : ` / `if` 用于决定视觉元素的可见性 → 回到数据驱动。
-
-### 22.6 自检
-
-- [ ] 场景中有没有 `if (isXxx) { drawYyy() }` 模式的视觉元素可见性切换？
-- [ ] 这些切换是否能改写为从已有数据源连续派生？
-- [ ] 过渡是否使用了 `smoothstep` 或 `clamp` 而非硬阈值？
-- [ ] 是否存在"伪数据驱动"（三元运算符伪装）？

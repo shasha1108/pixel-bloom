@@ -22,6 +22,8 @@ painter's algorithm：从远到近画每一条波浪线（远浪 = 低振幅/高
 
 ```javascript
 // 像素海浪——5 层波浪叠加（从远到近）
+// > 风驱动：全局风速从 vegetation-system.md §五 的 WIND 对象读取，
+//   确保水面波浪和岸边树木响应同一阵风。
 const PIXEL_WAVES = {
   // 远浪（地平线附近——小、快、浅色）
   far: [
@@ -477,7 +479,7 @@ function drawSeafloorWithCaustics(seafloorY, horizonY, time, px, choppiness) {
 
 ---
 
-## 九、自检清单
+## 九、海面模式自检清单
 
 - [ ] 水面用了 ≥ 3 层不同频率/振幅的正弦叠加（不是单线）？
 - [ ] choppiness > 0（波峰像素聚集、波谷稀疏）？
@@ -494,7 +496,7 @@ function drawSeafloorWithCaustics(seafloorY, horizonY, time, px, choppiness) {
 
 ---
 
-## 九、河流模式——Y 轴遍历 + 非线性透视
+## 十、河流模式——Y 轴遍历 + 非线性透视
 
 > §一~§八 覆盖海面/湖泊（开放水面，X 轴遍历 + painter's algorithm）。河流是**带状水体**——从远到近的连续路径，需要不同的遍历方式和透视公式。
 >
@@ -576,3 +578,11 @@ if (r && abs(x - r.cx) < r.w / 2 + PX * 2) continue; // 留 2px 缓冲区
 | 1 | X 轴遍历河流 | 警告 | 逐列 rect() 填河 → 性能差且波纹难对齐 | Y 轴遍历 + beginShape |
 | 2 | 线性 t 替代 pow(t,2) | 警告 | 河流远近视缺乏冲击力——"直筒" | `pow((y-H)/(CH-H), 2)` |
 | 3 | `left/right` 当 Y 坐标用 | **致命** | 河流变成竖条 | `left/right` 是屏幕 X 坐标 |
+
+### 10.7 自检清单
+
+- [ ] 河流是否使用 Y 轴遍历 + `beginShape()`/`endShape()`（非逐列 `rect()`）？
+- [ ] 透视公式是否使用 `pow(t, 2)`（非线性收窄，非线性 `t`）？
+- [ ] `left`/`right` 是否正确用作屏幕 X 坐标（非 Y 坐标）？
+- [ ] 稻田/植被绘制循环中是否做了河流避让（留 ≥ 2px 缓冲区）？
+- [ ] 水平波纹是否随时间从远漂到近（`frameCount` 驱动，非静态）？

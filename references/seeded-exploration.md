@@ -229,13 +229,13 @@ const JITTER_OFFSET = 73;
 
 ```javascript
 function generateGarden(seed) {
-  randomSeed(seed);   // p5.js 内置 —— 用于 rng() 序列
+  randomSeed(seed);   // p5.js 内置 —— 用于 random() 序列
   noiseSeed(seed);    // p5.js 内置 —— 用于 noise() 场
 
   for (let i = 0; i < plantCount; i++) {
-    // 场景结构决策（位置、物种选择）→ 用 rng()
-    const sp = SPECIES[Math.floor(rng() * speciesKeys.length)];
-    const baseX = rng() * gardenWidth;
+    // 场景结构决策（位置、物种选择）→ 用 random()
+    const sp = SPECIES[Math.floor(random() * speciesKeys.length)];
+    const baseX = random() * gardenWidth;
 
     // 逐元素变化（振幅、亮度、颜色微调）→ 用 hash(i + OFFSET)
     const swayAmp = 0.65 + hf(i + 7) * 0.7;      // 每棵树不同
@@ -252,7 +252,7 @@ function generateGarden(seed) {
 }
 ```
 
-**⚠️ p5.js 注意事项**：`randomSeed(seed)` 影响 `random()` 调用，`noiseSeed(seed)` 影响 `noise()` 调用——但 `hf()` 是独立的，不受这两个 seed 影响。三者共存时：`rng()` 用于场景结构、`noise()` 用于空间场、`hf(idx)` 用于逐元素微变——各司其职，互不干扰。
+**⚠️ p5.js 注意事项**：`randomSeed(seed)` 影响 `random()` 调用，`noiseSeed(seed)` 影响 `noise()` 调用——但 `hf()` 是独立的，不受这两个 seed 影响。三者共存时：`random()` 用于场景结构、`noise()` 用于空间场、`hf(idx)` 用于逐元素微变——各司其职，互不干扰。
 
 ### 自检（追加到上方质量检查）
 

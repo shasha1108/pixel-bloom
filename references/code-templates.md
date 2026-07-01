@@ -35,7 +35,7 @@
   Audio: <yes | no>
   Touch: <singleTap=行为, doubleTap=行为，无交互则写 none>
   Dependencies: p5.js 1.9.0
-  Repo: healing-visual-lab
+  Repo: pixel-bloom
 -->
 <html lang="zh-CN">
 <head>
@@ -186,7 +186,7 @@ function drawPixelSprite(shape, palette, px) {
 
 ## 程序化生态生成（Procedural Flora）
 
-不手画每一个像素，用算法生成具备有机感的聚落。以下三种模型覆盖赛博养花/养宠的绝大部分场景。
+不手画每一个像素，用算法生成具备有机感的聚落。以下四种模型覆盖赛博养花/养宠的绝大部分场景。
 
 ### 模型 A：向上堆叠 + 正弦摇摆（水草/海带/花茎/柳条）
 
@@ -200,13 +200,13 @@ function drawStackSway(baseX, baseY, segments, px, color1, color2, phase) {
 }
 ```
 
-### 模型 B：网格阵列 + 随机剔除（海绵/灌木/树冠/草丛）
+### 模型 B：网格阵列 + 随机剔除（灌木/树冠/草丛/云朵）
 
 ```javascript
 function drawGridCluster(baseX, baseY, gridW, gridH, px, palette, density) {
   for (let by = 0; by < gridH; by++) {
     for (let bx = -gridW; bx <= gridW; bx++) {
-      if (random() > density) continue;
+      if (random() > density) continue;  // density = 像素保留比例
       fill(random(palette));
       rect(baseX + bx * px, baseY - by * px, px, px);
     }
@@ -214,17 +214,18 @@ function drawGridCluster(baseX, baseY, gridW, gridH, px, palette, density) {
 }
 ```
 
+> **☁️ 云彩适配**：模型 B 同样用于像素云彩，参数调整——density 0.3-0.5（更蓬松）、噪声频率改用 Perlin noise 驱动（`noise(x*0.04, y*0.04)`，阈值 `= 1 - density`）、调色板用白→淡灰蓝（`['#f8fafc','#e8f0f8','#d0dce8','#b8c8d8']` 或夕阳暖色/阴云灰蓝/夜云暗色）。宽高比横向（宽:高 = 2:1~3:1，与树冠的竖直方向相反）。
+
 ### 模型 C：圆域筛选 / 勾股定理（脑纹珊瑚/花蕊/蘑菇/球形灌木）
 
 ```javascript
-function drawRadialCluster(baseX, baseY, radius, px, palette) {
+function drawRadialCluster(baseX, baseY, radius, px, palette, density = 0.85) {
   for (let dy = 0; dy < radius; dy++) {
     let limit = round(sqrt(radius * radius - dy * dy));
     for (let dx = -limit; dx <= limit; dx++) {
-      if (random() > 0.15) {
-        fill(random(palette));
-        rect(baseX + dx * px, baseY - dy * px, px, px);
-      }
+      if (random() > density) continue;  // density = 像素保留比例（0.85 = 原默认行为）
+      fill(random(palette));
+      rect(baseX + dx * px, baseY - dy * px, px, px);
     }
   }
 }
@@ -233,14 +234,14 @@ function drawRadialCluster(baseX, baseY, radius, px, palette) {
 ### 模型 D：扇形展开（海扇/孔雀屏/棕榈叶/扇形珊瑚）
 
 ```javascript
-function drawFan(baseX, baseY, height, px, color1, color2) {
+function drawFan(baseX, baseY, height, px, color1, color2, density = 0.6) {
   for (let dy = 0; dy < height; dy++) {
     let spread = round(dy * 0.8);
     for (let dx = -spread; dx <= spread; dx++) {
-      if (random() > 0.4 || abs(dx) === spread) {
-        fill(random() > 0.5 ? color1 : color2);
-        rect(baseX + dx * px, baseY - dy * px, px, px);
-      }
+      // 边缘强制保留（维持扇形轮廓），内部按 density 剔除
+      if (abs(dx) !== spread && random() > density) continue;
+      fill(random() > 0.5 ? color1 : color2);
+      rect(baseX + dx * px, baseY - dy * px, px, px);
     }
   }
 }
@@ -359,11 +360,9 @@ document.getElementById('interact-layer').addEventListener('pointerdown', (e) =>
 
 ## 颜色配方
 
-### Frutiger Aero 天空/水色（作为背景渐变）
+### Frutiger Aero 天空/水色
 
-```javascript
-const AERO_SKY = ['#6ac5f8', '#90dcf4', '#bdf2e4', '#e6fcf5'];
-```
+> 天空和水面渐变色见 `assets/palettes.json` 的 `sky_gradient` 数组——用于 Canvas 内 `fill()` 逐像素填充，与 CSS 层的 `base_gradient` 配合使用。
 
 ### 调色板
 

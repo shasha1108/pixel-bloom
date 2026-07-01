@@ -1,6 +1,7 @@
 {
   "description": "Frutiger Aero pixel-bloom palettes — each palette has a personality, 4 colors, and a best-use scene.",
   "base_gradient": "linear-gradient(160deg, #a8e6f8 0%, #cdf0fa 30%, #e4f8f0 65%, #f4fcf9 100%)",
+  "sky_gradient": ["#6ac5f8", "#90dcf4", "#bdf2e4", "#e6fcf5"],
   "palettes": [
     {
       "name": "Aqua Glass",
