@@ -43,6 +43,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Pixel Bloom</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>window.p5||document.write('<script src="https://cdn.bootcdn.net/ajax/libs/p5.js/1.9.0/p5.min.js"><\/script>');</script>
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -91,6 +92,7 @@
 </head>
 <body>
 
+<!-- ⚠️ 开放场景（像素风景/森林·开放模式）：删除以下三板——毛玻璃是封闭容器专属 -->
 <div class="ambient-light" style="width:30vw;height:30vw;top:-5%;left:5%;"></div>
 <div class="ambient-light" style="width:22vw;height:22vw;bottom:8%;right:5%;"></div>
 <div class="glass-bg"></div>
@@ -112,6 +114,11 @@ function setup() {
 
   pixelDensity(1);
   noSmooth();
+
+  // 致命铁律：CW=width; CH=height; 必须在所有 new XXX() 之前。
+  // 全局 let CW,CH 初始为 undefined → 过早访问导致 NaN → 静默白屏。
+  CW = width; CH = height;
+  // 所有依赖画布尺寸的实体初始化放在这行之后
 }
 
 function draw() {

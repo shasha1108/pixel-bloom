@@ -143,6 +143,123 @@ html,body{touch-action:none;user-select:none;-webkit-user-select:none}
 - Frutiger Aero 底色：`linear-gradient(160deg,#a8e6f8,#cdf0fa,#e4f8f0,#f4fcf9)`
 - 场景内 2-3 套调色板统一色调
 
+### 6.1 空间相干颜色变化（去 random，用 noise field）
+
+**当前反模式**：每个物体/每棵树用 `random(palette)` 独立选色 → 相邻物体颜色随机跳变 → 这是"噪声"，不是"自然变化"。
+
+**自然界的颜色变化是空间相干的**：同一片草地的草颜色相近（共享土壤、光照），相邻的树有相似的色调（微气候），颜色变化发生在**区域尺度**上。
+
+**升级方案**：用 Perlin 噪声场驱动颜色选择，不再逐物体 `random()`。
+
+```javascript
+// === 颜色补丁：噪声场 → colormap 查找 ===
+// 在 setup() 中预计算或每帧实时计算
+
+/**
+ * 空间相干颜色选择 —— 替代 random(palette)
+ * @param {number} x — 物体世界 X 坐标
+ * @param {number} y — 物体世界 Y 坐标
+ * @param {number} patchScale — 颜色补丁的尺度（越小=补丁越大）
+ * @param {Array} palette — 调色板数组
+ * @returns {string} 颜色（hex）
+ */
+function patchColor(x, y, patchScale, palette) {
+  // 噪声值 [0, 1] —— 相邻的 (x,y) 产生相近的噪声值
+  const n = noise(x * patchScale, y * patchScale);
+  // 映射到调色板索引
+  const idx = Math.floor(n * palette.length);
+  return palette[constrain(idx, 0, palette.length - 1)];
+}
+```
+
+**patchScale 的选择**（2D 像素画布，以 640px 宽为例）：
+
+| patchScale | 补丁宽度 | 适用场景 |
+|-----------|---------|---------|
+| 0.01 | ~200px | 大区域颜色主题——整个草地东侧暖、西侧冷 |
+| 0.03 | ~70px | 中等补丁——3-5 棵树共享一个颜色倾向 |
+| 0.08 | ~25px | 小补丁——每棵树有自己的颜色，但相邻的仍相近 |
+
+**⚠️ 避坑**：patchScale 过小（< 0.005）→ 整个场景同一颜色 → 失去变化。过大（> 0.2）→ 相邻像素噪声值不连续 → 退化为 random。**推荐起始值 0.03（约 70px 宽补丁），然后根据场景尺寸调整。**
+
+### 6.2 双梯度混合（植物特定）
+
+对于植被场景，颜色变化有两个正交维度：
+1. **梯度方向**（A→B 或暖→冷）：决定补丁内所有植物的基调
+2. **高度方向**（根→尖）：决定单个植物从基部到顶端的颜色推移
+
+```javascript
+// === 双梯度混合系统 ===
+// 每套物种有两个颜色梯度（如：A=暖绿→黄绿，B=冷绿→蓝绿）
+
+const SPECIES_COLORS = {
+  broadleaf: {
+    // 梯度 A — 默认（暖调）
+    rootColorA: '#4a6b27', tipColorA: '#8fbc3b',
+    // 梯度 B — 变体（冷调）
+    rootColorB: '#3d5c1f', tipColorB: '#7aac2f',
+  },
+  conifer: {
+    rootColorA: '#3d2b1f', tipColorA: '#2d5a1e',
+    rootColorB: '#4a3528', tipColorB: '#3a6b28',
+  },
+};
+
+/**
+ * 双梯度颜色选择 + 逐物体亮度变异
+ */
+function plantColor(x, y, heightT, species, patchScale, palette) {
+  const sp = SPECIES_COLORS[species];
+  
+  // 1. 补丁混合：噪声值决定梯度 A 和 B 的混合比例
+  const patchNoise = noise(x * patchScale, y * patchScale);
+  const blend = constrain(patchNoise, 0, 1);
+  
+  // 2. 根色和尖色分别在 A/B 之间混合
+  const root = lerpColor(hexToColor(sp.rootColorA), hexToColor(sp.rootColorB), blend);
+  const tip = lerpColor(hexToColor(sp.tipColorA), hexToColor(sp.tipColorB), blend);
+  
+  // 3. 沿高度方向在根色和尖色之间混合
+  const baseColor = lerpColor(root, tip, heightT);
+  
+  // 4. 逐物体亮度微调（确定性 hash，范围 ±12%）
+  const brightnessVar = 0.88 + hash(x * 100 + y * 37) * 0.24;
+  
+  return {
+    r: constrain(Math.round(baseColor.r * brightnessVar), 0, 255),
+    g: constrain(Math.round(baseColor.g * brightnessVar), 0, 255),
+    b: constrain(Math.round(baseColor.b * brightnessVar), 0, 255),
+  };
+}
+```
+
+**效果**：
+- 补丁噪声 → 相邻植物共享颜色倾向（同一片"微气候"）
+- 双梯度 → 变化不单调（不只是"亮一点/暗一点"，是色调偏移）
+- 逐物体亮度 hash → 同补丁内仍有细微个体差异（但不超过 ±12%，不会产生突兀的跳跃）
+
+### 6.3 宏观亮度场（可选叠加层）
+
+在补丁混合之上，可叠加一个更低频的亮度场来模拟"大片光照差异"——如云影、地形起伏。
+
+```javascript
+// 宏观亮度：极低频率噪声 → 大片区域偏亮或偏暗
+const macroNoise = noise(x * 0.005 + 137, y * 0.005 + 91);
+// 范围约 ±10%，非常微妙——这是"感觉"，不是"明显的明暗不同"
+const macroFactor = 1.0 + (macroNoise - 0.5) * 0.2;
+// 最终颜色 *= macroFactor
+```
+
+**⚠️ 微观颜色变化 vs 宏观亮度场**：微观（§6.1-6.2）= 逐物体的颜色选择，尺度 ~30-200px。宏观（§6.3）= 跨整个场景的亮度渐变，尺度 ~300-600px。两者叠加 = 自然界的多尺度变化。**不要只用其中一个——单尺度变化读作"单调"。**
+
+### 6.4 色彩自检（追加到色彩相关检查）
+
+- [ ] 颜色选择是否使用 `noise(x * patchScale, y * patchScale)` 而非 `random(palette)`？
+- [ ] patchScale 是否匹配画布尺寸（推荐 0.02-0.05，约 40-100px 补丁）？
+- [ ] 是否使用了双梯度混合（A→B 色调偏移 + 根→尖高度推移）？
+- [ ] 逐物体亮度变异是否限制在 ±15% 以内（hash-based，非 random）？
+- [ ] 宏观亮度场是否极低频率（patchScale 的 1/6 以下）？
+
 ---
 
 ## 七、音效
@@ -805,3 +922,391 @@ function drawFan(baseX, baseY, height, px, color1, color2, density = 0.5) {
 - [ ] 场景中同时使用多种模型时，没有传同一个裸 density 值？
 - [ ] 模型 C/D 的筛选阈值已对照校准表设置？
 - [ ] 如果模型 C/D 已被改造接受 density 参数——确认了改造版本在 `code-templates.md` 中？
+
+---
+
+## 十九、大面积填充性能铁律（Full-Surface Fill）
+
+> 开放风景场景的天空/地形/水面/稻田——任何需要覆盖 ≥ 30% 画布的区域——禁止用 `rect()` 逐格填充。三条铁律覆盖所有场景。
+
+### 19.1 铁律一：纯色或垂直渐变 → Canvas Gradient
+
+```javascript
+// ❌ 死路：80 条 rect() 模拟天空渐变
+for (let i = 0; i < 80; i++) { fill(...); rect(0, y, CW, stripH); }
+
+// ✅ 单次 GPU 调用
+let grad = drawingContext.createLinearGradient(0, 0, 0, horizonY);
+grad.addColorStop(0, topColor.toString());
+grad.addColorStop(1, botColor.toString());
+drawingContext.fillStyle = grad;
+drawingContext.fillRect(0, 0, CW, horizonY);
+```
+
+**适用**：天空、大范围水体底色、任何垂直渐变。
+
+### 19.2 铁律二：大面积同色底色 + 稀疏噪声叠加 → 两段式
+
+```javascript
+// ✅ 整块底色（单次 rect）
+fill(baseColor);
+rect(0, horizonY, CW, CH - horizonY);
+
+// ✅ 稀疏叠加——只在高噪声区加纹路（~95% 像素不画）
+fill(highlightColor);
+for (let y = horizonY; y < CH; y += PX * 4) {
+  for (let x = 0; x < CW; x += stepX(y)) {
+    if (noise(...) > 0.55) rect(x, y, len, h); // 仅在噪声峰触发
+  }
+}
+```
+
+**性能差距**：逐格 ~12K rect/帧 → 两段式 ~800 rect/帧（约 15×）。
+
+**适用**：稻田、草地、沙地、雪地——任何带纹理的大面积。
+
+### 19.3 铁律三：带状不规则区域 → `beginShape()` 单次路径
+
+```javascript
+// ❌ 死路：逐列 rect() 填充河流
+for (let x = 0; x < CW; x += PX) {
+  let b = getRiver(x); rect(x, b.top, PX, b.h);
+}
+
+// ✅ beginShape + endShape 单次路径
+fill(riverColor);
+beginShape();
+for (let y = horizon; y <= CH; y += PX) {
+  let b = getRiver(y); if (b) vertex(b.left, y);
+}
+for (let y = CH; y >= horizon; y -= PX) {
+  let b = getRiver(y); if (b) vertex(b.right, y);
+}
+endShape(CLOSE);
+```
+
+**性能差距**：逐列 ~960 rect/帧 → 单次路径 1 draw call（约 500×）。
+
+**适用**：河流、溪流、道路、任何由两侧边界定义的带状区域。
+
+### 19.4 自检
+
+- [ ] 天空是否用了 Canvas Gradient（而非 `rect()` 条带）？
+- [ ] 地形/稻田底色是否是单次 `rect()`（而非逐格填充）？
+- [ ] 纹理叠加是否用 `noise() > threshold` 稀疏触发？
+- [ ] 河流/道路是否用 `beginShape()`/`endShape()`（而非逐列 `rect()`）？
+
+---
+
+## 二十、像素星空与夜景天空
+
+> 设计哲学源自 threejs-environment-water-and-sky 的星星自动显现和大气消光模型。星星的可见性不由 `if (isNight)` 二元切换——从天空亮度连续派生。星星在天顶密集、地平线稀疏——用 `pow(heightRatio, 3.5)` 模拟大气消光。适配到 Pixel Bloom：纯 Canvas2D 像素绘制，确定性 hash 生成星点位置，Perlin 微动模拟闪烁。
+
+### 20.1 天空亮度 → 星星可见性（数据驱动，非状态驱动）
+
+```javascript
+// === 天空亮度计算（驱动所有夜景元素） ===
+// skyBrightness: 0.0 = 纯黑夜空, 1.0 = 白天蓝天
+// 从天空渐变的 topColor 和 bottomColor 的 BT.709 luma 派生
+function calcSkyBrightness(topColor, bottomColor) {
+  const topLuma = topColor._getRed() * 0.2126 + topColor._getGreen() * 0.7152 + topColor._getBlue() * 0.0722;
+  const botLuma = bottomColor._getRed() * 0.2126 + bottomColor._getGreen() * 0.7152 + bottomColor._getBlue() * 0.0722;
+  return (topLuma + botLuma) / (2 * 255); // 归一化到 [0, 1]
+}
+
+// 场景初始化时计算一次（或天空颜色变化时更新）
+let skyBrightness = 0.35; // 示例：黄昏天空
+
+// === 星星可见性：连续函数，不是 if(isNight) ===
+// 天空亮度 > 0.35 → 无星星（白天/黄昏初期）
+// 天空亮度 < 0.15 → 满星（深夜）
+// 0.15-0.35 → 连续过渡（黄昏→夜晚）
+const starsAlpha = constrain((0.35 - skyBrightness) * 5.0, 0, 1);
+```
+
+### 20.2 像素星星生成（确定性 + 大气消光）
+
+```javascript
+// === 像素星星系统 ===
+const STAR_COUNT = 200;        // 200 颗星——在 640×960 画布上不拥挤
+const STAR_SIZE = 1;          // 1px——像素艺术的最小可见单位（亮星可变大）
+const STAR_COLOR_BRIGHT = '#ffffff';  // 亮星（天顶）
+const STAR_COLOR_DIM = '#aabbcc';    // 暗星（地平线）
+
+function generateStars(seed, horizonY) {
+  const stars = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    // 确定性位置：用 hf() 而非 random()
+    const x = hf(i * 12.9898) * width;
+    const y = hf(i * 37.373 + 7) * horizonY;  // 仅在地平线以上
+    
+    // 大气消光：地平线附近 (y 接近 horizonY) 的星星更暗更稀疏
+    const heightRatio = 1.0 - (y / horizonY);  // 0 = 地平线, 1 = 天顶
+    const extinction = Math.pow(heightRatio, 3.5);  // pow(h, 3.5) 大气消光
+    
+    // 只有通过消光筛选的星星才保留——地平线附近自动稀疏
+    if (hf(i * 73.37) > extinction * 0.9) continue;
+    
+    // 星星亮度：消光 + 个体亮度变异
+    const brightness = extinction * (0.5 + hf(i + 13.37) * 0.5);  // 0.5-1.0
+    
+    // 亮星（~5%）可能变大到 2px — 模拟亮星/行星
+    const isBright = hf(i + 137) > 0.95;
+    const size = isBright ? 2 : STAR_SIZE;
+    
+    stars.push({ x: Math.round(x), y: Math.round(y), brightness, size });
+  }
+  return stars;
+}
+```
+
+### 20.3 星星闪烁（Perlin 微动）
+
+```javascript
+// === 每帧更新 —— 星星不闪烁，但微弱的 Perlin 亮度变化模拟"大气闪烁" ===
+function drawStars(stars, time, starsAlpha) {
+  if (starsAlpha <= 0.01) return;  // 白天——不画
+  
+  for (const s of stars) {
+    // 闪烁：Perlin 噪声在每颗星上产生 ±20% 的亮度微变
+    const twinkle = 0.8 + noise(s.x * 0.05, s.y * 0.05, time * 0.3) * 0.4;
+    const alpha = s.brightness * twinkle * starsAlpha;
+    
+    const c = lerpColor(
+      hexToColor(STAR_COLOR_DIM), 
+      hexToColor(STAR_COLOR_BRIGHT), 
+      s.brightness
+    );
+    c.setAlpha(Math.round(alpha * 255));
+    fill(c);
+    rect(Math.round(s.x), Math.round(s.y), s.size * PX, s.size * PX);
+  }
+}
+
+// 在 draw() 中：
+// drawStars(stars, millis() * 0.001, starsAlpha);
+```
+
+### 20.4 月亮（可选）
+
+```javascript
+// === 像素月亮 — 天顶附近，确定性和 seed 绑定 ===
+const MOON_RADIUS = 18;  // px — 在 640px 宽画布上约占 3%
+
+function generateMoon(seed) {
+  // 月亮位置——天顶偏右或偏左，由 seed 决定
+  const moonX = width * (0.6 + hf(seed + 999) * 0.3);  // 0.6-0.9
+  const moonY = horizonY * (0.15 + hf(seed + 997) * 0.2);  // 天顶 15-35%
+  return { x: Math.round(moonX), y: Math.round(moonY) };
+}
+
+function drawMoon(moon, starsAlpha) {
+  if (starsAlpha <= 0.3) return;  // 仅在天足够暗时出现
+  
+  // 月亮本体——粉彩白
+  fill(lerpColor(color(0, 0, 0, 0), color(252, 248, 240, 255), starsAlpha));
+  circle(moon.x, moon.y, MOON_RADIUS * 2 * PX);
+  
+  // 月亮光晕（可选）——微弱的径向渐变月华
+  // 用 CSS radial-gradient 叠加在玻璃层（z=1 环境光斑层）比 canvas 内绘制更高效
+}
+```
+
+### 20.5 夜景天空配色
+
+Frutiger Aero 调色板中可以加入夜景模式：
+
+```javascript
+// 夜景天空渐变 — 深蓝到深紫，保持 Frutiger Aero 的柔和发光感
+const NIGHT_SKY_TOP = '#0a1628';    // 深蓝黑——天顶
+const NIGHT_SKY_BOT = '#1a2a3a';    // 稍浅——地平线光污染
+// 黄昏过渡（日落时）：天空从白天色板平滑过渡到夜景
+// → 用 skyBrightness 作为 lerp 因子：topColor = lerp(dayTop, nightTop, 1-starsAlpha)
+```
+
+### 20.6 反模式
+
+| # | 反模式 | 级别 | 表现 | 修复 |
+|---|--------|------|------|------|
+| 1 | 星星用 `random()` 生成 | **致命** | 每次刷新星星位置不同 → 不可复现 | 用 `hf(i * prime1 + prime2)` 确定性 hash |
+| 2 | 星星均匀分布 | 警告 | 地平线和天顶星星密度相同 → 平面感 | 用 `pow(heightRatio, 3.5)` 大气消光 |
+| 3 | `if(skyBrightness < 0.2) showStars()` | 警告 | 硬阈值切换 → 星星突然出现 | `starsAlpha = clamp((0.35 - skyBrightness) * 5.0, 0, 1)` |
+| 4 | 星星闪烁用 `random()` | 警告 | 每帧随机 → 像"故障噪点"而非"闪烁" | 用 `noise(x, y, time)` Perlin 微动 |
+| 5 | 忘记 `starsAlpha` 守卫 | 警告 | 白天也在画星星 → 浪费性能 | `if (starsAlpha <= 0.01) return;` 放在 `drawStars()` 顶部 |
+
+### 20.7 自检
+
+- [ ] 星星位置是否用确定性 hash 生成（同一 seed = 同一星空）？
+- [ ] 是否使用了大气消光 `pow(heightRatio, 3.5)`（非均匀分布）？
+- [ ] 星星可见性是否从 `skyBrightness` 连续派生（非 `if(isNight)`）？
+- [ ] 闪烁是否使用 Perlin noise（非 `random()`）？
+- [ ] 白天是否跳过绘制（`starsAlpha <= 0.01` 守卫）？
+- [ ] 星空是否与场景其他元素（月亮、云彩）协调共存？
+
+---
+
+## 二十一、像素云彩 — 模型 B 网格剔除复用
+
+> Pixel Bloom 已有程序化植物模型 A-D（`code-templates.md`）。模型 B（网格剔除）的原始描述是"灌木、云朵、海绵、草丛"——云彩从一开始就是设计目标。本节是模型 B 在云彩场景上的参数调优指南。
+
+### 21.1 模型 B 云彩适配
+
+```javascript
+/**
+ * 像素云彩 — 模型 B（网格剔除）适配
+ * 和树冠/灌木使用同一算法，仅参数不同
+ * 
+ * @param {number} x, y — 云彩中心坐标
+ * @param {number} width, height — 云彩边界框
+ * @param {number} px — 像素单位
+ * @param {Array} palette — 颜色数组（白色到淡灰蓝）
+ * @param {number} density — 密度 0-1（0.3-0.5 适合蓬松云）
+ * @param {number} seed — 确定性种子
+ */
+function drawCloud(x, y, width, height, px, palette, density, seed) {
+  for (let dy = -height/2; dy < height/2; dy += px) {
+    for (let dx = -width/2; dx < width/2; dx += px) {
+      // Perlin 噪声密度场 — 与模型 B 完全相同
+      const nx = (x + dx) * 0.04;
+      const ny = (y + dy) * 0.04;
+      const n = noise(nx, ny);
+      
+      // 云彩的噪声阈值偏低（比树冠更"散开"）
+      const threshold = 1.0 - density;
+      if (n < threshold) continue;
+      
+      // 云彩边缘：噪声值越高 → 越白（云心），越低 → 越透明/灰蓝（云边）
+      const edgeSoftness = (n - threshold) / (1.0 - threshold);
+      const colorIdx = Math.floor(edgeSoftness * (palette.length - 1));
+      
+      fill(palette[constrain(colorIdx, 0, palette.length - 1)]);
+      rect(Math.round(x + dx), Math.round(y + dy), px, px);
+    }
+  }
+}
+```
+
+### 21.2 云彩 vs 树冠的关键参数差异
+
+| 参数 | 树冠 | 云彩 | 原因 |
+|------|------|------|------|
+| `density` | 0.4–0.65 | 0.3–0.5 | 云更蓬松——内部透光，需要更多间隙 |
+| 噪声频率 | 0.06–0.10 | 0.03–0.06 | 云的空间尺度更大——低频噪声 = 大块云团 |
+| 调色板 | 绿色系（3-4 色） | 白→淡灰蓝→淡灰（3-5 色） | 云是白色的，但需要灰蓝表示阴影和深度 |
+| 边界框比例 | 高 > 宽（树是竖直的） | 宽 > 高（云是水平的） | 云是横向延展的——宽高比 2:1 到 3:1 |
+
+### 21.3 云彩调色板
+
+```javascript
+// 白云（晴天） — Frutiger Aero 粉彩白
+const CLOUD_WHITE = ['#f8fafc', '#e8f0f8', '#d0dce8', '#b8c8d8'];
+// 夕阳云 — 暖色
+const CLOUD_SUNSET = ['#fce8d8', '#f8d8c0', '#f0c8a8', '#e8b890'];
+// 阴云/雨云 — 灰蓝
+const CLOUD_GRAY = ['#d8dce4', '#c0c8d4', '#a8b4c4', '#909cb0'];
+// 夜云 — 半透明暗色（配合月华）
+const CLOUD_NIGHT = ['#1a2440', '#182238', '#162034', '#141e30'];
+```
+
+### 21.4 多朵云彩的空间编排
+
+```javascript
+// 多朵云在天空中的布局 — 非均匀，有大有小
+function generateClouds(seed, horizonY, count = 5) {
+  const clouds = [];
+  for (let i = 0; i < count; i++) {
+    // 确定性位置
+    const x = hf(seed + i * 71) * width;
+    const y = hf(seed + i * 73 + 17) * horizonY * 0.7;  // 云在天空的上 70%
+    const w = (40 + hf(seed + i * 79 + 31) * 120);       // 宽 40-160px
+    const h = (20 + hf(seed + i * 83 + 37) * 50);        // 高 20-70px
+    const density = 0.3 + hf(seed + i * 89 + 41) * 0.2;  // 0.3-0.5
+    const paletteIdx = Math.floor(hf(seed + i * 97 + 53) * CLOUD_PALETTES.length);
+    clouds.push({ x, y, w, h, density, palette: CLOUD_PALETTES[paletteIdx] });
+  }
+  // 按 Y 排序——远处的云先画（被近处的云遮挡）
+  clouds.sort((a, b) => a.y - b.y);
+  return clouds;
+}
+```
+
+### 21.5 自检
+
+- [ ] 云彩是否使用模型 B（网格剔除 + Perlin 噪声密度场）而非 `ellipse()` 叠加？
+- [ ] 云彩的宽高比是否横向（宽 > 高），和树冠相反？
+- [ ] 是否使用了云彩专用调色板（非绿色植物色板）？
+- [ ] 多朵云是否按 Y 排序绘制（远处先画）？
+
+---
+
+## 二十二、数据驱动状态派生原则
+
+> 设计哲学源自 threejs-environment-water-and-sky 的星星自动显现模式：`visible = f(data)`，不是 `if(state) toggle()`。二元状态切换是视觉 bug 的温床——边界闪烁、忘记更新某个分支的标志、"开关式"跳变。数据驱动的连续函数消除全部三个问题。
+
+### 22.1 核心原则
+
+```
+❌ 状态驱动（不要）：
+   if (isNight) { drawStars(); } else { hideStars(); }
+   → 需要同步 isNight 和天空颜色两个独立状态
+   → 黄昏时 isNight 可能和天空颜色不同步
+   → "开关式"跳变
+
+✅ 数据驱动（要）：
+   starsAlpha = clamp((0.35 - skyBrightness) * 5.0, 0, 1)
+   → 单一真相源：天空亮度
+   → 星星可见性是天空亮度的连续函数
+   → 平滑过渡，无闪烁
+```
+
+### 22.2 Pixel Bloom 中的应用场景
+
+| 场景 | 数据源 | 派生公式 | 替代的二元状态 |
+|------|--------|---------|-------------|
+| 星星可见性 | `skyBrightness` | `clamp((0.35 - sb) * 5, 0, 1)` | `isNight` |
+| 萤火虫出现 | `skyBrightness` + `time` | `clamp((0.4 - sb) * 4, 0, 1) * (0.5 + sin(t*0.3)*0.5)` | `isDusk` |
+| 夜光植物发光 | `skyBrightness` | `clamp((0.3 - sb) * 3, 0, 1)` | `isDark` |
+| 月亮可见性 | `skyBrightness` + `moonPhase` | `clamp((0.25 - sb) * 4, 0, 1) * moonBrightness` | `isNight && hasMoon` |
+| Ganzfeld 色温 | `time` | `lerp(warmPalette, coolPalette, sin(t * 0.1) * 0.5 + 0.5)` | `colorPhase` enum |
+| 生物行为模式 | `hunger` + `time` + `proximityToUser` | 各行为权重的加权和 → 最 "urgent" 的行为激活 | `state: 'idle' \| 'hungry' \| 'playing'` |
+
+### 22.3 smoothstep — 数据驱动的过渡工具
+
+`smoothstep(edge0, edge1, x)` 是数据驱动状态派生的核心工具。它在 `[edge0, edge1]` 区间内产生平滑的 S 曲线过渡，而不是硬阈值。
+
+```javascript
+// ❌ 硬阈值（二元状态思维）
+const isActive = calm > 0.7;  // calm=0.69 → 无, calm=0.71 → 有 —— 跳变
+
+// ✅ smoothstep（数据驱动思维）
+const activeAlpha = smoothstep(0.5, 0.8, calm);  // calm=0.5–0.8 → 平滑过渡
+```
+
+### 22.4 与现有原则的关系
+
+| 现有原则 | 关系 |
+|---------|------|
+| 仿生运动三法则 | 数据驱动状态派生是"灵魂漫游"（Perlin noise）在状态机维度的等价——不跳变 |
+| Frutiger Aero 色彩纪律 | FRUTIGER AERO 禁止硬对比——数据驱动的平滑过渡是色彩纪律在时间维度的延伸 |
+| 概念种子→参数偏置（§十六） | 偏置表定义的是"倾向"（暖+20%），不是"开关"（暖/冷）——数据驱动思维已隐含在其中 |
+
+### 22.5 ⚠️ 伪数据驱动（反模式）
+
+```javascript
+// ❌ 这是二元分支伪装成数据驱动
+const alpha = skyBrightness < 0.2 ? 1.0 : 0.0;
+// → 和 if(isNight) 完全等价 —— 只是把 if 写成了三元运算符
+
+// ✅ 真正的数据驱动
+const alpha = clamp((0.35 - skyBrightness) * 5.0, 0, 1);
+// → 过渡区间 0.15–0.35，从 1 平滑到 0 —— 没有阈值
+```
+
+**判断标准**：如果公式中存在 `<` / `>` / `? : ` / `if` 用于决定视觉元素的可见性 → 回到数据驱动。
+
+### 22.6 自检
+
+- [ ] 场景中有没有 `if (isXxx) { drawYyy() }` 模式的视觉元素可见性切换？
+- [ ] 这些切换是否能改写为从已有数据源连续派生？
+- [ ] 过渡是否使用了 `smoothstep` 或 `clamp` 而非硬阈值？
+- [ ] 是否存在"伪数据驱动"（三元运算符伪装）？

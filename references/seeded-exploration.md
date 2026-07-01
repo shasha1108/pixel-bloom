@@ -182,3 +182,81 @@ function updateParam(key, value) {
 - [ ] 移动端触摸 slider 不触发画布交互
 
 > 参数设计方法论见 `design-principles.md §十二`。
+
+---
+
+## 确定性逐元素变化模式
+
+> 设计哲学源自 stylized-scene 的逐叶片 hash 变化。Pixel Bloom 场景中大量相似元素（50 棵树、100 个花瓣、80 个花粉粒子）——不能每个都用 `random()`（破坏种子可复现性），也不能全部相同（看起来像克隆）。
+
+### 核心公式（p5.js 适配）
+
+```javascript
+// 轻量确定性 hash —— 用于逐元素变化（非加密）
+function hf(n) {
+  const x = Math.sin(n * 12.9898 + 7.373) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+// 模式 1：振幅变化 （每棵树的摇摆幅度不同）
+// 范围 65%-135% —— 有些树"硬"，有些"软"
+const ampVar = 0.65 + hf(treeIdx + 7) * 0.7;
+tree.swayAmplitude = BASE_SWAY * ampVar;
+
+// 模式 2：亮度变化 （每棵树的颜色微调）
+// 范围 ±15% —— 微妙但打破"克隆感"
+const brightVar = 0.85 + hf(treeIdx + 13.37) * 0.3;
+plantBaseColor = lerpColor(rootColor, tipColor, heightT);
+plantBaseColor.setRed(constrain(plantBaseColor._getRed() * brightVar, 0, 255));
+
+// 模式 3：确定性抖动 （位置/边缘不规则化）
+// 范围 ±amount
+function jitter(idx, amount) {
+  return (hf(idx * 12.9898) - 0.5) * 2 * amount;
+}
+// 用法：植物初始位置微调——不是完美网格排列
+plant.x = gridX + jitter(plantIdx, 3);  // ±3px 抖动
+
+// 模式 4：多值解耦
+// 不同用途的 hash 用不同偏移，确保值之间不相关
+const PHASE_OFFSET = 0;
+const AMP_OFFSET = 7;
+const BRIGHT_OFFSET = 13.37;
+const JITTER_OFFSET = 73;
+```
+
+### 在 `generateGarden(seed)` 中的集成
+
+```javascript
+function generateGarden(seed) {
+  randomSeed(seed);   // p5.js 内置 —— 用于 rng() 序列
+  noiseSeed(seed);    // p5.js 内置 —— 用于 noise() 场
+
+  for (let i = 0; i < plantCount; i++) {
+    // 场景结构决策（位置、物种选择）→ 用 rng()
+    const sp = SPECIES[Math.floor(rng() * speciesKeys.length)];
+    const baseX = rng() * gardenWidth;
+
+    // 逐元素变化（振幅、亮度、颜色微调）→ 用 hash(i + OFFSET)
+    const swayAmp = 0.65 + hf(i + 7) * 0.7;      // 每棵树不同
+    const bright = 0.85 + hf(i + 13.37) * 0.3;   // 每棵树不同
+    const posJitter = jitter(i, 2);               // ±2px
+
+    plants.push({
+      x: baseX + posJitter,
+      species: sp,
+      swayAmp: swayAmp,
+      brightness: bright,
+    });
+  }
+}
+```
+
+**⚠️ p5.js 注意事项**：`randomSeed(seed)` 影响 `random()` 调用，`noiseSeed(seed)` 影响 `noise()` 调用——但 `hf()` 是独立的，不受这两个 seed 影响。三者共存时：`rng()` 用于场景结构、`noise()` 用于空间场、`hf(idx)` 用于逐元素微变——各司其职，互不干扰。
+
+### 自检（追加到上方质量检查）
+
+- [ ] 大量同类元素（>10）是否使用 `hf(idx + OFFSET)` 做逐元素变化（而非 `random()`）？
+- [ ] 不同用途的 hash 是否使用了不同的偏移值（7/13.37/73）？
+- [ ] 振幅变化是否限制在 65%-135%（不会出现"几乎不动"或"疯狂摇摆"的极端）？
+- [ ] 亮度变化是否限制在 ±15%（不会出现"太暗看不清"或"太亮刺眼"）？

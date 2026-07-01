@@ -491,3 +491,88 @@ function drawSeafloorWithCaustics(seafloorY, horizonY, time, px, choppiness) {
 - [ ] 焦散三层 scale 互质（0.03/0.05/0.12）？
 - [ ] 焦散使用加亮混合（`r + 40*c`，非 `mix`）？
 - [ ] 镜面水面（choppiness=0）焦散强制为 0？
+
+---
+
+## 九、河流模式——Y 轴遍历 + 非线性透视
+
+> §一~§八 覆盖海面/湖泊（开放水面，X 轴遍历 + painter's algorithm）。河流是**带状水体**——从远到近的连续路径，需要不同的遍历方式和透视公式。
+>
+> **触发条件**：场景含"河流/溪流/运河/水渠"——水体呈带状、从地平线延伸到近景。不触发：海/湖/池塘（→ §一~§八 海面模式）。
+
+### 9.1 核心差异：海面 vs 河流
+
+| 维度 | 海面模式 | 河流模式 |
+|------|---------|---------|
+| 遍历轴 | X（逐列画波浪线） | Y（逐行算左右边界） |
+| 填充方式 | 每条波浪线单独 `rect()` | 单次 `beginShape()`/`endShape()` |
+| 透视 | painter's algorithm 远→近覆盖 | `pow(t, 2)` 非线性收窄 |
+| 边界 | 海面覆盖整个画布下半 | 河流有明确的左右边界 |
+
+### 9.2 河流边界函数
+
+```javascript
+function getRiver(y, horizon) {
+  if (y < horizon) return null;               // 地平线以上无河流
+  let t = pow((y - horizon) / (CH - horizon), 2.0); // 非线性透视——远近夸张
+  let cx = CW * 0.5 + sin(t * PI * 1.2) * CW * 0.15; // S 形蜿蜒中线
+  let w = CW * (0.01 + t * 0.5);              // 远端极窄，近端宽
+  return { cx, w, left: cx - w/2, right: cx + w/2 };
+}
+```
+
+**`pow(t, 2)` 的作用**：`t` 是 0→1 的线性深度。平方后近景（t 近 1）几乎不变，远景（t 近 0）被极度压缩 → 河流在远处迅速收窄为一条细线 → 冲击力远超线性 `t`。
+
+**反面教材**：用线性 `t` 替代 `pow(t,2)` → 河流近大远小的透视感消失 → 像"等宽直筒"。
+
+### 9.3 河流填充——单次 `beginShape()`
+
+```javascript
+fill(riverColor);
+beginShape();
+// 左岸——从地平线到画面底部
+for (let y = horizon; y <= CH; y += PX * 2) {
+  let b = getRiver(y, horizon); if (b) vertex(b.left, y);
+}
+// 右岸——从底部回到地平线
+for (let y = CH; y >= horizon; y -= PX * 2) {
+  let b = getRiver(y, horizon); if (b) vertex(b.right, y);
+}
+endShape(CLOSE);
+```
+
+**性能差距**：逐列 `rect()` ~960 次 draw call → 单次 `beginShape()` 1 draw call（~500×）。
+
+### 9.4 河面波纹——水平光带
+
+```javascript
+// 水平波纹——随时间从远漂到近
+fill(255, 255, 255, 120);
+for (let i = 0; i < 6; i++) {
+  let t = ((frameCount * 0.002 + i * 0.16) % 1);
+  let wy = horizon + t * (CH - horizon);
+  let b = getRiver(wy, horizon);
+  if (b) {
+    let wx = b.cx + sin(frameCount * 0.05 + i) * b.w * 0.2; // 水平偏移
+    rect(wx, wy, PX * (2 + t * 8), PX * (1 + t * 2)); // 近处更大更宽
+  }
+}
+```
+
+**为什么是水平光带**：河面波纹是光线在水面的反射——物理上反射光带平行于河岸线。水平绘制比斜向更自然。
+
+### 9.5 稻田/植被的河流避让
+
+```javascript
+// 在稻田/草地绘制循环中——跳过河流区域
+let r = getRiver(y, horizon);
+if (r && abs(x - r.cx) < r.w / 2 + PX * 2) continue; // 留 2px 缓冲区
+```
+
+### 9.6 反模式（河流专属）
+
+| # | 反模式 | 级别 | 表现 | 修复 |
+|---|--------|------|------|------|
+| 1 | X 轴遍历河流 | 警告 | 逐列 rect() 填河 → 性能差且波纹难对齐 | Y 轴遍历 + beginShape |
+| 2 | 线性 t 替代 pow(t,2) | 警告 | 河流远近视缺乏冲击力——"直筒" | `pow((y-H)/(CH-H), 2)` |
+| 3 | `left/right` 当 Y 坐标用 | **致命** | 河流变成竖条 | `left/right` 是屏幕 X 坐标 |

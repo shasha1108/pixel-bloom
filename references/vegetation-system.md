@@ -451,6 +451,124 @@ function drawTree(tree, canopyPixels, sp, px) {
 
 **如果三种风用一个 windAngle 做同步摆动 → 塑料假树。** 每级风的频率/振幅/相位独立 → 有机的树。
 
+### 5.1 升级：四组分频率叠加（替换单频 sin）
+
+当前三级风每个级别用单一 `sin(time * freq)` 驱动——这在单棵树时足够，但多棵树时缺乏**空间传播感**（"风以波的形式扫过田野"）。引入四组分频率叠加：
+
+```javascript
+/**
+ * 四组分风强计算 —— 替代单频 sin，用于所有风级别
+ * @param {number} x — 元素世界 X 坐标（决定空间相位）
+ * @param {number} elemIdx — 元素索引（决定逐元素相位偏移）
+ * @param {number} time — 全局时间
+ * @param {object} w — 风参数 { gustScale, speed, turbulence }
+ * @returns {number} 归一化风强 0~1（驱动各级振幅）
+ */
+function windIntensity(x, elemIdx, time, w) {
+  const bladePhase = hash(elemIdx) * Math.PI * 2;
+  const ampVar = 0.65 + hash(elemIdx + 7) * 0.7;  // 0.65-1.35
+  
+  // 空间相位：沿 X 轴的投影决定阵风到达时间
+  const along = x * w.gustScale;
+  const noiseJitter = (noise(x * 0.03, 0) - 0.5) * 2.0;
+  
+  // 阵风：低频大振幅，以波的形式沿 X 传播
+  const gustPhase = along - time * w.speed * 0.6 + noiseJitter * 1.5;
+  const gust = Math.pow(Math.sin(gustPhase) * 0.5 + 0.5, 1.6);
+  
+  // 碎浪：中频中振幅，叠加在阵风上
+  const chopPhase = along * 2.7 - time * w.speed * 1.3 + bladePhase;
+  const chop = Math.sin(chopPhase) * 0.5 + 0.5;
+  
+  // 微风地板：永远有轻微的风（逐元素独立）
+  const breeze = (Math.sin(time * w.speed * 0.6 + bladePhase) * 0.5 + 0.5) * w.turbulence * 0.4;
+  
+  return (0.25 + gust * 0.85 + chop * 0.18 + breeze) * ampVar;
+}
+```
+
+**集成方式**：在 `applyWind()` 中，用 `windIntensity(tree.trunk.x, treeIndex, time, windParams)` 替代裸的 `windStrength`。三级风的频率和振幅不变——但驱动它们的强度现在来自空间传播的四组分风场。
+
+**关键差异**：
+
+| | 旧（单频 sin） | 新（四组分） |
+|---|---|---|
+| 相邻两棵树 | 相位取决于各自 `twist` 随机值——可能同步也可能反向 | 相位由世界 X 坐标决定——相邻的树自然相近，远处的树错相 |
+| 阵风感 | 无——风强均匀 | 有——阵风以波的形式扫过，间歇性强风 |
+| 逐树差异 | 仅 `twist` 偏移 | `hash(idx)` 振幅变异 + `hash(idx+7)` 相位偏移 + 空间相位 |
+
+**⚠️ 2D 像素适配注意事项**：
+- 圆形弧线弯曲公式（`u = R(1-cos a)`, `dv = R·sin a - dy`）是 3D 的——在 2D 像素画中**只使用水平偏移分量**，忽略垂直下垂（`dv`）。2D 侧视图中"叶片弯曲时的垂直缩短"用 `scaleY` 调整而非 `dv`。
+- 颤振 (`flutter`) 的频率在像素画中降低——12-20Hz 在 60fps 显示器上每个像素只偏移 1px，低于 p5.js 的整数像素精度 → 高频颤振在 2D 像素中不可见。**2D 颤振降频到 6-10Hz，振幅提到 ±2px** 才可见。
+
+### 5.2 空间传播：每棵树的相位 = f(世界 X 坐标)
+
+当前多棵树使用各自的 `twist` 值做相位偏移——但 `twist` 是每棵树的独立随机值，相邻两棵树可能完全不同步。
+
+**升级**：每棵树的基础相位由其在场景中的 X 坐标决定：
+
+```javascript
+// 替换：tree.trunkSwayOffset = sin(time * freq + tree.twist)
+// 为：
+function treePhase(tree, time, windParams) {
+  // 基础相位：世界 X 坐标 → 阵风到达时间
+  const spatialPhase = tree.trunk.x * windParams.gustScale;
+  // 逐树微调：hash(treeIdx) 提供小幅个体差异（不是完全独立）
+  const individualShift = hash(tree.index) * 0.3;  // 仅 ±0.15π
+  return spatialPhase + individualShift;
+}
+```
+
+**效果**：
+- 相邻的树（X 差 < 10px）→ 相位差 < 0.2π → 几乎同步摇摆 → "它们被同一阵风吹过"
+- 远处的树（X 差 > 50px）→ 相位差 > π → 完全异步 → "风以波的形式穿过树林"
+- `individualShift` 仅提供 ±15% 的个体偏差——不会让相邻的树完全反向，但也不至于完全克隆
+
+### 5.3 四级风：为植被场景引入全局风参数
+
+当前 `applyWind` 每次调用时 `windStrength` 是外部传入的单一值。建议引入全局风参数对象，所有植物从同一风场读取：
+
+```javascript
+// 全局风参数（所有植物共享——由概念种子偏置 + 时间驱动）
+const WIND = {
+  strength: 0.25,   // 0-1 总风强 —— 概念种子"慢下来不是落后"→ 0.15
+  speed: 2.0,       // 风速
+  angle: 45,        // 风向（度）—— 2D 像素画中简化为"从哪侧吹来"
+  gustScale: 0.5,   // 阵风空间频率
+  turbulence: 0.28, // 逐元素独立摆动幅度
+  flutter: 0.28,    // 尖端颤振幅度
+};
+
+// 在每帧更新时：
+function updateWind(time) {
+  // 风力随时间缓慢变化（模拟自然风的变化——不是恒定的）
+  WIND.strength = 0.25 + sin(time * 0.3) * 0.08 + sin(time * 0.7) * 0.05;
+  // 范围 0.12-0.38 —— 有变化但不过于剧烈
+}
+
+// applyWind 内部改为：
+function applyWind(tree, canopyPixels, time, px) {
+  const intensity = windIntensity(tree.trunk.x, tree.index, time, WIND);
+  const w = intensity;  // 替代原来的 windStrength
+  
+  // ... 三级风逻辑不变，但 w 现在是空间传播的
+}
+```
+
+**与概念种子偏置的集成**（`design-principles.md §十六`）：
+- "每棵树有自己的节奏"（慢下来不是落后）→ `WIND.strength = 0.15`, `WIND.speed = 1.2`
+- "被遗忘的花园在呼吸"（神秘/宁静）→ `WIND.turbulence = 0.15`, `WIND.flutter = 0.1`
+- "暴风雨后的平静"（治愈/释放）→ Act 2 `WIND.strength = 0.6` → Act 3 `WIND.strength = 0.1`
+
+### 5.4 自检（追加到 §八 风相关项）
+
+- [ ] 多棵树是否使用 `windIntensity(x, idx, time, WIND)` 而非裸的 `windStrength`？
+- [ ] 相邻的树（X 差 < 10px）是否自然同步（不是克隆、不是完全反向）？
+- [ ] 远处的树（X 差 > 50px）是否有明显的相位差？
+- [ ] 2D 像素画是否忽略了垂直下垂（`dv`）分量？
+- [ ] 颤振频率在 2D 中是否降到了 6-10Hz（不是 12-20Hz）？
+- [ ] 全局 WIND 参数是否与概念种子偏置一致？
+
 ---
 
 ## 六、林地生成（多棵树的空间编排）
@@ -539,5 +657,8 @@ function generateGrove(count, speciesKey, groundY, areaW, px, rng) {
 - [ ] 树冠在分支拓扑稳定后统一生成（不是边生分支边加叶子）？
 - [ ] 树冠 `density` < 0.65（有像素间隙 = 透光）？
 - [ ] 风实现了三级独立系统（叶颤 Hz/支摇 Hz/干摆 Hz）？
+- [ ] 多棵树的风驱动来自 `windIntensity(x, idx, time, WIND)`（四组分空间传播，非裸 windStrength）？
+- [ ] 相邻树（X 差 < 10px）自然同步、远处树（X 差 > 50px）有明显相位差？
+- [ ] 2D 像素中颤振频率已降为 6-10Hz、忽略 dv 分量？
 - [ ] 多棵树用拒绝采样排布 + depthFactor 深浅排序？
 - [ ] 改 seed 不改物种 → 个体差异（非物种变化）？

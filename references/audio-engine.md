@@ -98,6 +98,8 @@ function createNoiseBuffer(type = 'white') {
 
 把噪音接到一个**低通滤波器**就能变成风声、海浪：
 
+### 配方 A：基础风声（粉噪 → 低通）
+
 ```javascript
 function createWindLayer() {
     const src = audioCtx.createBufferSource();
@@ -118,6 +120,60 @@ function createWindLayer() {
     return { filter, gain, src };   // 返回引用，以便交互时改 frequency / gain
 }
 ```
+
+### 配方 C：自然阵风（粉噪 → 低通 → LFO 调制 cutoff）
+
+配方 A 的风声是**恒定的**——没有自然界中"时大时小"的阵风感。加一个慢速 LFO 调制低通截止频率，模拟风吹过田野的节奏：
+
+```javascript
+function createGustWind() {
+    const src = audioCtx.createBufferSource();
+    src.buffer = createNoiseBuffer('pink');
+    src.loop = true;
+
+    // 低通——比配方 A 稍高，给 LFO 调制留空间
+    const lpFilter = audioCtx.createBiquadFilter();
+    lpFilter.type = 'lowpass';
+    lpFilter.frequency.value = 600; // 基础截止频率
+    lpFilter.Q.value = 1;
+
+    // LFO——0.15Hz 正弦，调制 cutoff ±200Hz
+    // 0.15Hz = 约 6.7 秒一个完整呼吸周期——接近自然阵风
+    const lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.15;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 200; // 频率摆动幅度
+    lfo.connect(lfoGain);
+    lfoGain.connect(lpFilter.frequency);
+
+    const outGain = audioCtx.createGain();
+    outGain.gain.value = 0.12;
+
+    src.connect(lpFilter);
+    lpFilter.connect(outGain);
+    outGain.connect(masterGain);
+
+    src.start();
+    lfo.start(); // LFO 也需要 start！
+
+    return { lpFilter, lfo, outGain, src };
+}
+```
+
+**参数调节指南**：
+
+| 参数 | 效果 | 范围 |
+|------|------|------|
+| `lpFilter.frequency.value` | 基础音色——越低越闷、越高越"嘶" | 400–800 |
+| `lfo.frequency.value` | 阵风节奏——越低越慢 | 0.08–0.3 |
+| `lfoGain.gain.value` | 阵风强弱——值越大时大时小越明显 | 100–350 |
+| `outGain.gain.value` | 总音量 | 0.05–0.2 |
+
+**反模式**：
+- LFO 频率 > 2Hz → 风声像"有人在快速开关风扇"而非自然阵风
+- 白噪音替代粉噪音 → 刺耳——粉噪是风声的唯一正确基底
+- 忘记 `lfo.start()` → LFO 不工作，退化为配方 A
 
 ---
 
