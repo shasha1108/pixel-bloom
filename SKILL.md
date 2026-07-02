@@ -26,6 +26,7 @@ description: >
 | 时机 | 文件 | 内容 | 加载方式 |
 |------|------|------|---------|
 | 启动时必读 | `references/design-principles.md` | 铁律/架构/形状/运动/材质/交互/色彩/音效/反模式/听觉/排版/参数/像素锚定/对抗检查/第一性原理/概念偏置/风场/性能/星空/Ganzfeld | **必读 §一~§十七；§十八~§廿一 按场景翻阅** |
+| 🎨 场景含 Frutiger Aero 元素时 STEP 1-4 必读 | `references/frutiger-aero-palettes.md` | 4 大色系权威色号字典 / 11 套精选调色板 / 3 套标准渐变公式 / 色彩校验铁律 / 三大避坑区 | **必读全部——且触发后禁止自创任何颜色值**（触发条件：场景含玻璃容器/球体/水晶/生态绿植/水体/水下/iPod/MP3/售货机/抛光亚克力/天空留白，或用户 Prompt 含"清透感""Frutiger Aero""通透""晶莹"。不触发：纯像素艺术/像素森林/像素宠物/赛博宠物等纯像素网格场景） |
 | STEP 1-3 执行时必读 | `references/generation-workflow.md` | STEP 1-4 执行细节：画幅选项 / 场景模式表 / 拆解示例 / 技术决策表 / 空间预检 / 精修 | **必读全部** |
 | STEP 4 生成前必读 | `references/code-templates.md` | 防御性骨架 / 玻璃容器渲染管线 / 四大程序化模型 A-D / FSM 代码 / 交互模板 / 调色板预设 / 质量清单 | **必读：§防御性骨架 + （若含玻璃容器 → §玻璃容器渲染）+ 场景匹配的程序化模型 + §质检清单。其余翻阅** |
 | 场景含玻璃容器时 STEP 2-4 必读 | `references/code-templates.md §玻璃容器渲染` | Canvas-Only 玻璃渲染管线：贝塞尔瓶身路径 / clip 遮罩 / 菲涅尔边缘 / 曲面条带高光 / 瓶口反射环 / 3D 软木塞 / 铁律 | **必读全部**（触发条件：场景含玻璃瓶/水族箱/玻璃罩/漂流瓶/封闭容器。不触发：开放风景/纯室内无玻璃） |
@@ -36,7 +37,6 @@ description: >
 | 确认含音效后按需读 | `references/audio-engine.md` | Web Audio 合成配方（零音频文件）— §一~§六 + 情绪→音色速查 | **翻阅** |
 | 音效需求复杂时按需读 | `references/audio-advanced.md` | 高级配方：和弦垫 / 节拍器 / 五声音阶 / AudioWorklet / 空间混响 | **翻阅** — 按需查配方 |
 | 需要可复现/可探索时按需读 | `references/seeded-exploration.md` | Seeded randomness / Seed 导航面板 / 参数 slider 面板 / 可分享 URL | **翻阅** — 查模式 |
-| STEP 2 选色时查阅 | `assets/palettes.json` | 6 套 Frutiger Aero 命名色板 + 5 套控制台调色板 + 2 套 Lospec 16 色受限调色板 + 基底渐变 + 使用规则 | **翻阅** — 选色板 |
 
 ## 六大硬性铁律（全场景宪法 — 生成前必读）
 
