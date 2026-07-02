@@ -112,5 +112,74 @@
     "dither_example": "水体深度渐变: orderedDither(x, y, depthT, AeroAqua[8], AeroAqua[11]) → 青色与深海蓝之间用 4×4 Bayer 矩阵做像素级抖动过渡"
   },
   "dithering_note": "控制台调色板和 Frutiger Aero 调色板均可与 Bayer 有序抖动（见 code-templates.md §像素实体系统）配合使用。玻璃高光/轮廓/文字永不抖动。抖动用于背景/地形/渐变过渡。",
-  "usage": "选择一个色板 → colors[0]用作主体、colors[1]用作高光、colors[2-3]用作背景过渡。永不 random RGB——始终从 palettes 数组中索引。"
+  "usage": "选择一个色板 → colors[0]用作主体、colors[1]用作高光、colors[2-3]用作背景过渡。永不 random RGB——始终从 palettes 数组中索引。",
+
+  "frutiger_aero_reference": {
+    "description": "Frutiger Aero 权威参考调色板 — 来自 Lospec、ColorMagic、DeviantArt 等社区精选。代表 Windows Vista / iOS 3-6 / Nintendo Wii 时代的高饱和通透自然美学。",
+    "sources": [
+      {"name": "aero16", "url": "https://lospec.com/palette-list/aero16", "creator": "TokoSauce"},
+      {"name": "Frutiger Aero 5", "url": "https://colormagic.app/palette/67449f87ed1554d4dbb0b226"},
+      {"name": "Frutiger Aero Comprehensive", "url": "https://aesthetics.fandom.com/wiki/Frutiger_Aero"}
+    ],
+
+    "aero16": {
+      "name": "aero16 (TokoSauce)",
+      "personality": "16 色 Frutiger Aero 全场景调色板 — 从冰白到深海、从嫩绿到暖阳、从薰衣草紫到深紫",
+      "size": 16,
+      "colors": [
+        "#f9fcff", "#b7e8e8", "#7fffee", "#6dc9ff",
+        "#576ae5", "#32c982", "#98ea96", "#ccffa3",
+        "#091e26", "#48627c", "#b3c4d6", "#fff6d1",
+        "#ffed96", "#ffb566", "#9b2e8e", "#5a1b91"
+      ],
+      "color_roles": {
+        "whites_ice":   ["#f9fcff", "#b7e8e8", "#7fffee"],
+        "sky_water":    ["#6dc9ff", "#576ae5"],
+        "greens_nature":["#32c982", "#98ea96", "#ccffa3"],
+        "darks_depth":  ["#091e26", "#48627c", "#b3c4d6"],
+        "warm_sun":     ["#fff6d1", "#ffed96", "#ffb566"],
+        "accent_pop":   ["#9b2e8e", "#5a1b91"]
+      },
+      "best_for": "全场景 Frutiger Aero — 水体/天空/草地/玻璃/UI 全覆盖"
+    },
+
+    "frutiger_aero_core5": {
+      "name": "Frutiger Aero Core 5 (ColorMagic)",
+      "personality": "Frutiger Aero 核心蓝青色系 — 从深海蓝到冰晶白的完美水体渐变",
+      "size": 5,
+      "colors": ["#129aca", "#33bcde", "#6dd6ec", "#9aeff2", "#faefef"],
+      "color_names": {
+        "#129aca": "Eastern Blue (深海蓝)",
+        "#33bcde": "Scooter (过渡青)",
+        "#6dd6ec": "Sky Blue (晴空蓝)",
+        "#9aeff2": "Ice Cold (冰晶青)",
+        "#faefef": "Fantasy (暖白)"
+      },
+      "best_for": "水体渐变、天空背景、玻璃容器底色 — 5 色构成完美 3-Stop 水体渐变: #9aeff2(浅) → #33bcde(中) → #129aca(深)"
+    },
+
+    "frutiger_aero_nature_glass": {
+      "name": "Frutiger Aero Nature + Glass",
+      "personality": "阳光、草地、玻璃、水珠 — Windows Vista 时代的自然科技乐观主义",
+      "colors_by_category": {
+        "grass_greens": {
+          "description": "嫩绿到鲜绿 — 阳光照射下的草地",
+          "colors": ["#9FFFC5", "#7ED957", "#5CBF3B", "#8BC34A", "#00E676"]
+        },
+        "sky_blues": {
+          "description": "晴空与水体的通透蓝青",
+          "colors": ["#6DD6EC", "#129ACA", "#33BCDE", "#9AEFF2", "#3A9BDC", "#00BFFF"]
+        },
+        "gloss_whites": {
+          "description": "玻璃高光与亚克力抛光",
+          "colors": ["#FAEFEF", "#FFFFFF", "#F0F8FF", "#F5F5F5"]
+        },
+        "accent_pops": {
+          "description": "暖阳点缀与 UI 强调色",
+          "colors": ["#FF6600", "#FF3399", "#CCFF00", "#FFB347"]
+        }
+      },
+      "best_for": "草地场景、阳光耀斑、玻璃高光、UI 点缀"
+    }
+  }
 }

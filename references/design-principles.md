@@ -159,6 +159,14 @@ specGrad.addColorStop(1,   'rgba(255,255,255,0.0)');  // 完全消失
 2. **3:1:1 黄金面积比**：70% 绝对冷色（水青+晴空青+海蓝）+ 20% 鲜活绿/白（嫩芽绿+亚克力白）+ 10% 暖光点缀（太阳黄/耀斑粉）。
 3. **高光混合模式**：所有白色高光条带、水面反光、水下气泡必须叠加 `globalCompositeOperation = 'screen'` 或 `'lighter'`——禁止直接用不透明白块平涂。
 
+**参考调色板来源**（完整色值见 `assets/palettes.json → frutiger_aero_reference`）：
+
+| 来源 | 色板名 | 颜色数 | 最佳用途 |
+|------|--------|--------|---------|
+| Lospec | **aero16** (TokoSauce) | 16 色 | 全场景 Frutiger Aero — 冰白/水青/嫩绿/暖阳/薰衣草紫全覆盖 |
+| ColorMagic | **Frutiger Aero Core 5** | 5 色 | 完美水体渐变：`#9aeff2`→`#33bcde`→`#129aca` |
+| Aesthetics Wiki | **Nature + Glass** | 20+ 色 | 草地绿/天空蓝/玻璃白/暖阳点缀 四大色系 |
+
 ---
 
 ### 铁律 5：确定性渲染 — 禁止 `random()` 在 `draw()` 中用于静态/半静态元素
