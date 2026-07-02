@@ -19,7 +19,7 @@
    - 像素森林 / 花园 → 推荐 **4:3**（稳定观感）
    - 沉浸 / 冥想 / Ganzfeld → 推荐 **全视口**
    - 用户可自选：3:4 / 9:16 / 1:1 / 4:3 / 16:9 / 全视口
-   - 固定比例用 CSS `aspect-ratio` 锁定；全视口用 `100vw × 100vh`
+   - 固定比例用 `#pixel-stage` wrapper + `sizeStage()` 保持比例；全视口用 `100vw × 100vh`
 2. 确定音效方案（四选一，默认无音效）：
    - **无音效**（默认）— 纯视觉交互
    - **交互 chime** — 单击/双击触发短促正弦音
@@ -30,8 +30,8 @@
 
 | 场景模式 | 画布 | 特征 |
 |---------|------|------|
-| 封闭容器（穹顶/球体/玻璃瓶） | 固定画布（CSS aspect-ratio 锁定） | Z-index 三明治 + `transform:scale` 适配屏幕 |
-| 开放场景（全视口天空/水下） | 全视口 | 无玻璃壳，CSS 极光光斑漂浮 |
+| 封闭容器（穹顶/球体/玻璃瓶） | 固定画布（`#pixel-stage` wrapper + `sizeStage()` 适配屏幕） | Wrapper 统一坐标系统，玻璃层 `position:absolute` + `%` 单位 |
+| 开放场景（全视口天空/水下） | 全视口 | 无玻璃壳，`#pixel-stage` 填满视口，CSS 极光光斑漂浮 |
 | Ganzfeld（已触发） | 全视口 | 高明度 Aero 光场 + Skyspace 透镜容器 |
 
 3.5 确定场景类型，按维度分解（防止元素拼贴——每个场景都是一个有纵深的世界，不是元素的平铺）：
@@ -72,7 +72,7 @@
 
 | 决策项 | 选项 |
 |--------|------|
-| 画布类型 | 固定画布（CSS aspect-ratio 锁定比例）/ 全视口 |
+| 画布类型 | 固定画布（`#pixel-stage` wrapper + `sizeStage()` 保持比例）/ 全视口 |
 | 运动模式 | FSM Wander/Chase/Flee / React-only |
 | 玻璃类型 | 穹顶 / 球体 / Skyspace 透镜（Ganzfeld）/ 无 |
 | 粒子 | Perlin 漩涡 / 下落 / 拖影残像（Ganzfeld：`fill(10,8,20,12)` 替代 `clear()`）/ 无 |

@@ -5,7 +5,7 @@
 ## 一、架构
 
 ### 固定画布
-像素艺术用固定像素尺寸 + `transform:scale()` 适配屏幕。尺寸由用户选择的画幅比例决定（如 3:4 → 640×960，16:9 → 960×540），不传 `windowWidth/windowHeight`。
+像素艺术用固定像素尺寸 + `#pixel-stage` wrapper 的 `sizeStage()` 适配屏幕。尺寸由用户选择的画幅比例决定（如 3:4 → 640×960，16:9 → 960×540），不传 `windowWidth/windowHeight`。Canvas 通过 `c.parent('pixel-stage')` + CSS `width:100%; height:100%` 填满 wrapper，`image-rendering: pixelated` 保持像素锐利。Wrapper 尺寸由 `sizeStage()` 计算 `Math.min(windowWidth/CW, windowHeight/CH)` 并保持 aspect-ratio。
 
 ```javascript
 const CW=640,CH=960;  // 示例：3:4 竖幅，根据所选比例调整
@@ -14,25 +14,51 @@ createCanvas(CW,CH);noSmooth();
 
 `noSmooth()` 在固定画布上单独生效（不需要 `pixelDensity(1)`，高 DPI 下后者反而可能发虚）。
 
-### 玻璃容器三层分离（全场景统一 Z-index，不得更改）
+### 玻璃容器统一坐标系统（全场景统一 Z-index + Wrapper，不得更改）
+
+**旧反模式（已废弃）**：各层独立 `position: fixed` + vw/vh 单位，canvas 用 JS 单独定位 → 各层尺寸/坐标系统不同 → 固定画布（如 640×960）被视口尺寸的玻璃壳 `::after` 白色渐变彻底盖死。
+
+**新铁律**：所有视觉层必须位于同一个 `#pixel-stage` wrapper 内，使用 `position: absolute` + 百分比单位。wrapper 的 CSS 尺寸 = 画布显示尺寸，由 JS 的 `sizeStage()` 统一计算。**任何 layer 禁止单独使用 `position: fixed`。**
 
 ```
-z=1  环境极光光斑（CSS 径向渐变，fixed，缓慢漂浮）
-z=2  毛玻璃底板（唯一有 backdrop-filter:blur 的层）
-z=3  Canvas 像素渲染层（JS 强控：c.style('z-index','3') + drop-shadow 内部投影）
-z=4  玻璃外壳（::after 菲涅尔高光，绝对不加 blur，pointer-events:none）
-z=5  交互拦截层（#interact-layer，原生 pointerdown 事件）
+#pixel-stage (position:fixed, 居中于视口, overflow:hidden)
+├── z=1  环境极光光斑（position:absolute, CSS 径向渐变, % 单位, 缓慢漂浮）
+├── z=2  毛玻璃底板（position:absolute, 唯一有 backdrop-filter:blur 的层, % 单位）
+├── z=3  Canvas 像素渲染层（position:absolute, 填满 wrapper, c.parent('pixel-stage')）
+├── z=4  玻璃外壳（position:absolute, ::after 菲涅尔高光, 绝对不加 blur, pointer-events:none, % 单位）
+└── z=5  交互拦截层（position:absolute, #interact-layer, inset:0, 原生 pointerdown 事件）
 ```
 
-**铁律：blur 只在 z=2 底板层，永远不在 canvas 上层或玻璃壳层。** 无玻璃的开放场景中 z=2 和 z=4 不存在，其余层级保持不变。
+**铁律：**
+1. **blur 只在 z=2 底板层**，永远不在 canvas 上层或玻璃壳层
+2. **所有层使用 `position: absolute`**（相对于 `#pixel-stage`），禁止 `position: fixed`
+3. **`#pixel-stage` 必须有 `overflow: hidden`**，裁剪 `::after` 菲涅尔高光溢出
+4. **固定画布模式**：`windowResized()` 只调 `sizeStage()` 重算 wrapper 尺寸，不改 canvas 分辨率。像素永远锐利
+5. **全视口模式**：`#pixel-stage { width:100vw; height:100vh; top:0; left:0; transform:none }` + `resizeCanvas(windowWidth, windowHeight)`
+
+无玻璃的开放场景中 z=2 和 z=4 不存在，其余层级 + wrapper 保持不变。
 
 容器尺寸固定时，穹顶/球体的 border-radius 用精确数学值：
 - 穹顶 `border-radius: <玻璃宽度的一半>px <玻璃宽度的一半>px 0 0`
 - 球体 `border-radius: 50%`（正方形元素）
-- 玻璃高光用 `::after` 斜切 `linear-gradient`（模拟菲涅尔反射）
+- 玻璃高光用 `::after` 斜切 `linear-gradient`（模拟菲涅尔反射），`#pixel-stage` 的 `overflow:hidden` 自动裁剪溢出
 
 ### 无玻璃的开放场景
-全视口天空渐变 + `position:fixed` 极光光斑 + canvas 填满视口。无玻璃壳层。
+全视口天空渐变 + `#pixel-stage` 填满视口 + canvas 填满 wrapper。无玻璃壳层。wrapper 仍用于统一坐标系统。
+
+### Canvas 玻璃容器场景（漂流瓶/水族箱/玻璃罩）
+
+当场景含玻璃容器时，**玻璃的全部渲染（形状、折射、高光、厚度）在 Canvas 内部通过 `drawAeroGlassBottle()` 完成**（见 `code-templates.md §玻璃容器渲染`）。此时 CSS 的 `.glass-bg` 和 `.glass-shell` 可选择性保留作为**环境底板**（仅 body 渐变模糊，不再承载容器形状），或完全移除——玻璃容器本身就是 Canvas 内的一幅画。
+
+Canvas 玻璃模式下的 CSS 层简化：
+```
+#pixel-stage
+├── z=1  环境光斑（可选，Canvas 之外的气氛光斑）
+├── z=2  （无玻璃底板 — 玻璃容器在 Canvas 内绘制）
+├── z=3  Canvas（包含：背景 + 玻璃容器 + 瓶内内容 + 前景）
+├── z=4  （无玻璃外壳 — 高光已在 Canvas 内部叠加）
+└── z=5  交互拦截层
+```
 
 ---
 
@@ -101,22 +127,63 @@ blendMode(BLEND);
 
 ---
 
-## 四、材质
+## 四、材质（Canvas-Only 玻璃渲染 · CSS 方案已废弃）
 
-### 玻璃光泽
-- 边框不等宽（上 3px 厚 / 下 1px 薄）
-- `::after` 对角白色渐变高光
-- `inset` 内发光（厚度感）
-- 水珠挂载到玻璃 DOM 元素内：`dome.appendChild(drop)`
+> **铁律：玻璃的形状、折射与高光必须 100% 在 Canvas 内部绘制。禁止使用 CSS `backdrop-filter` / `border-radius` / `::after` 模拟玻璃容器。**
 
-### 水珠透镜
-```css
-.water-drop{backdrop-filter:brightness(1.2) contrast(1.3) blur(2px);
-  box-shadow:inset 2px 2px 4px rgba(255,255,255,.8),0 5px 5px rgba(0,0,0,.1)}
+### 玻璃光泽（Canvas 三榻饼管线）
+
+所有玻璃效果通过 `drawingContext`（p5.js 暴露的原生 Canvas2D 上下文）绑制，分层叠加：
+
+```
+1. ctx.save() → defineBottlePath() → 瓶后体块（径向渐变底色，模拟玻璃背壁透光）→ ctx.restore()
+2. ctx.save() → defineBottlePath() → ctx.clip() → [瓶内水体/信纸/小船/气泡] → ctx.restore()
+3. ctx.save() → [瓶底沉淀厚度] → [菲涅尔边缘描边] → [曲面条带高光screen] → [瓶口反射环] → ctx.restore()
+4. ctx.save() → [软木塞3D圆柱体] → ctx.restore()
+```
+
+完整代码模板见 `code-templates.md §玻璃容器渲染`。
+
+### 三个物理光学效应（Canvas 实现 vs CSS 的局限）
+
+| 效应 | CSS 能做什么 | Canvas 正确做法 |
+|------|------------|----------------|
+| **菲涅尔反射** | `linear-gradient` 固定角度 | `schlick(cosθ)` 沿曲面法线计算 → 边缘自动亮起 |
+| **比尔吸收** | `box-shadow: inset` 均匀内发光 | `beerAttenuation(thickness, sigma)` 每像素光程计算 → 边缘深绿 |
+| **曲面高光** | `::after` 对角线渐变 | `globalCompositeOperation = 'screen'` + `bezierCurveTo()` 沿曲面绘制条带状高光 |
+
+关键公式：
+```javascript
+// Schlick Fresnel: F = F0 + (1-F0)*(1-cosθ)^5,  F0=0.04（玻璃 IOR≈1.5）
+// Beer-Lambert:  T = exp(-σ * thickness),  thickness = 2√(r² - d²)（球体光程）
+```
+
+### 调色板：Frutiger Aero 玻璃色
+
+| 用途 | 色值 | 说明 |
+|------|------|------|
+| 瓶后透光中心 | `rgba(210,245,255,0.12)` | 冰蓝 — 极淡，模拟薄玻璃中心透光 |
+| 瓶后透光边缘 | `rgba(30,100,85,0.45)` | 深绿 — 比尔吸收后边缘色 |
+| 菲涅尔边缘描边 | `rgba(15,70,60,0.55)` | 深墨绿 — 光程最长处 |
+| 高光峰 | `rgba(255,255,255,0.88)` | 纯白 — screen 混合下刺眼亮 |
+| 瓶底沉淀 | `rgba(5,35,30,0.65)` | 暗绿褐 — 最厚玻璃底 |
+| 软木塞固有色 | `#d4a878` | 暖木色 — 与玻璃冷色形成冷暖对比 |
+
+### 水珠透镜（Canvas 版）
+```javascript
+// 替代旧 CSS .water-drop
+ctx.save();
+ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.clip();
+// 透镜效果：放大 + 亮度提升
+ctx.drawImage(canvas, 0, 0);  // 复制当前画布
+// 叠加高光
+ctx.globalCompositeOperation = 'screen';
+ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+ctx.restore();
 ```
 
 ### 底座质感
-3 段渐变（亮面→固有色→暗面）+ 强外投影 + 顶部高光线 = 物体重量感。
+3 段渐变（亮面→固有色→暗面）+ 强外投影 + 顶部高光线 = 物体重量感。在 Canvas 中用 `createLinearGradient` 实现。
 
 ---
 
@@ -288,20 +355,23 @@ ey = by - sin(angle) * length;
 
 **预防：** 写完任何涉及角度的绘制代码后，脑中默念 "p5 Y-down, +sin = down, -sin = up"。
 
-### 反模式 2：CSS 与 p5.js canvas 属性冲突
+### 反模式 2：CSS 玻璃层与固定画布坐标分离（🔴 最高频致命 bug）
 
-p5.js 在 `createCanvas()` 时自己设置 `style` 属性。CSS 用 `!important` 或 `inset` 覆盖时与 p5 内部逻辑冲突，导致 canvas 完全消失。
+**症状**：CSS 绘制的巨大模糊/白色遮罩压在固定画布上方，画面像被脏玻璃彻底挡死。
 
-**正解：** 用 `c.parent('containerId')` 把 canvas 挂到指定 DOM 元素下，样式全部用 JS 设置（`c.style(...)`），**不用 CSS 选择器覆盖 canvas 属性**。需要 `border-radius` 或 `overflow:hidden` 时也在 JS 中设。
+**根因**：各层使用 `position: fixed` + vw/vh 独立定位。当画布为固定像素（640×960）、玻璃壳为视口尺寸（~90vw×88vh）时：
+- `.glass-shell`（z=4，canvas 之上）的 `::after` 伪元素 `width:120%; height:45%` + `rgba(255,255,255,0.4)` 白色渐变覆盖整个视口
+- Canvas 只有 640×960，被远大于它的玻璃壳完全盖住 → 画面不可见
+- 屏幕越大（1920×1080+），玻璃壳越大，覆盖越严重
 
-```javascript
-let c = createCanvas(CW, CH);
-c.parent('myContainer');
-c.style('position', 'absolute');
-c.style('top', '20px');
-c.style('left', '20px');
-c.style('z-index', '2');
-```
+**正解（唯一正确方式）**：使用 `#pixel-stage` wrapper 统一坐标系统。所有层用 `position: absolute` + `%` 单位相对于 wrapper。Canvas 通过 `c.parent('pixel-stage')` 挂入，CSS `width:100%; height:100%` 填满。Wrapper 尺寸由 JS `sizeStage()` 计算 = 画布显示尺寸。详见 `code-templates.md §防御性前端骨架`。
+
+**禁止事项**：
+- ❌ 任何层使用 `position: fixed`（wrapper 本身除外）
+- ❌ 玻璃层使用 vw/vh 单位（应用 `%` 相对于 wrapper）
+- ❌ Canvas 用 JS 设 `position: fixed; top:0; left:0`（应用 `c.parent()` + CSS `width:100%; height:100%`）
+- ❌ `backdrop-filter: blur()` 出现在 z-index ≥ 3 的任何元素上
+- ❌ 在 canvas 上层元素（z=4 玻璃壳、z=5 交互层）使用 `backdrop-filter`
 
 ### 反模式 3：校验通过 ≠ 页面正常
 
@@ -511,9 +581,12 @@ for (let p of flowParticles) {
 | 2 | API 兼容性 | 扫描 `fill(hex+'cc')` 等字符串拼接 α 值 → 替换为 `rgba()` | 致命 |
 | 3 | 地形/背景参数一致性 | 元素放置函数与场景绘制函数的参数交叉比对 | 致命 |
 | 4 | 元素坐标冲突 | 提取所有地面元素的 (x,y) 与水体/障碍边界交叉计算 | 致命 |
-| 5 | 跨浏览器兼容性 | 扫描 `rect(x, y, w, -h)` 等负尺寸 → 替换为正尺寸 | 警告 |
-| 6 | 缩放可见性 | 提取所有 `scale` 值，计算实际像素，标记 < 15px 的 | 警告 |
-| 7 | 颜色可见性 | 提取元素颜色与背景颜色，计算反差，标记 < 60 的 | 警告 |
+| 5 | **空间一致性（坐标系统）** | ① `position:fixed` 数量 ≤ 1（仅 wrapper）② 子层无 vw/vh 单位 ③ `c.parent()` 存在 ④ `sizeStage()` 存在（固定画布） | 致命 |
+| 6 | **空间一致性（blur 层级）** | `backdrop-filter` 仅出现在 z-index=2 的 `.glass-bg` 中，z≥3 的任何元素禁止 | 致命 |
+| 7 | **空间一致性（边界裁剪）** | `#pixel-stage` 有 `overflow:hidden`；`::after` 的 top+height ≤ 100%（不超出容器） | 警告 |
+| 8 | 跨浏览器兼容性 | 扫描 `rect(x, y, w, -h)` 等负尺寸 → 替换为正尺寸 | 警告 |
+| 9 | 缩放可见性 | 提取所有 `scale` 值，计算实际像素，标记 < 15px 的 | 警告 |
+| 10 | 颜色可见性 | 提取元素颜色与背景颜色，计算反差，标记 < 60 的 | 警告 |
 
 ### 执行纪律
 
@@ -548,12 +621,95 @@ for (const s of scales) {
   if (px < 15) issues.push(`WARN: scale=${s[1]} → ${px.toFixed(0)}px < 15px minimum`);
 }
 
+// 5. 空间一致性 — 坐标系统（致命）
+if (!html.includes('pixel-stage')) issues.push('FATAL: 缺少 #pixel-stage wrapper');
+
+// 5a. 固定画布必须有 sizeStage
+const isFixed = html.includes('Render: fixedCanvas');
+if (isFixed && !html.includes('sizeStage')) {
+  issues.push('FATAL: 固定画布缺少 sizeStage() 函数（wrapper 尺寸计算）');
+}
+
+// 5b. position:fixed 计数 — 只允许 #pixel-stage 使用
+const fixedMatches = html.match(/position\s*:\s*fixed/g) || [];
+// html, body 和 #pixel-stage 各算 1 次 fixed，合计 ≤ 3（html + body + wrapper）
+const hasWrapperFixed = html.includes('#pixel-stage') && /#pixel-stage\s*\{[^}]*position\s*:\s*fixed/.test(html);
+const allowedFixed = (html.includes('html') ? 1 : 0) + (html.includes('body') ? 1 : 0) + (hasWrapperFixed ? 1 : 0);
+if (fixedMatches.length > allowedFixed) {
+  issues.push('FATAL: 子层使用了 position:fixed（应全部改为 position:absolute）');
+}
+
+// 5c. 子层禁 vw/vh — 玻璃层必须用 %（开放场景 ambient-light 可用 vw/vh，但 glass-bg/shell 不行）
+const glassVW = (html.match(/\.glass-bg\s*\{[^}]*[vh]w/g) || []).length +
+                (html.match(/\.glass-shell\s*\{[^}]*[vh]w/g) || []).length;
+if (glassVW > 0) issues.push('FATAL: .glass-bg 或 .glass-shell 使用了 vw/vh（应用 % 相对于 wrapper）');
+
+// 5d. Canvas 挂入
+if (!html.includes('c.parent') && !html.includes('.parent(')) {
+  issues.push('FATAL: Canvas 未挂入 wrapper（缺少 c.parent()）');
+}
+
+// 6. 空间一致性 — blur 层级
+const blurAboveZ2 = /z-index\s*:\s*[3-9][^}]*backdrop-filter/.test(html) ||
+                     /backdrop-filter[^}]*z-index\s*:\s*[3-9]/.test(html);
+if (blurAboveZ2) issues.push('FATAL: backdrop-filter 出现在 z-index≥3 的层上（仅允许 z=2 的 glass-bg）');
+
+// 7. 空间一致性 — 边界裁剪（警告）
+if (!html.includes('overflow:hidden') && !html.includes('overflow: hidden')) {
+  issues.push('WARN: #pixel-stage 缺少 overflow:hidden（::after 高光可能溢出）');
+}
+// ::after 边界检查：提取 top 和 height 百分比值
+const afterMatch = html.match(/\.glass-shell::after\s*\{[^}]*\}/);
+if (afterMatch) {
+  const topM = afterMatch[0].match(/top\s*:\s*(-?\d+)%/);
+  const hM = afterMatch[0].match(/height\s*:\s*(\d+)%/);
+  if (topM && hM) {
+    const topVal = parseInt(topM[1]);
+    const heightVal = parseInt(hM[1]);
+    if (topVal < 0 && Math.abs(topVal) + heightVal > 100) {
+      issues.push(`WARN: ::after top(${topVal}%)+height(${heightVal}%) 超出 100%，溢出部分可能覆盖相邻层`);
+    }
+  }
+}
+
 console.log(issues.length ? issues.join('\n') : 'All checks passed');
 ```
 
 ### 14.5 像素视觉验证（对抗式检查之后 · 质检之前 · 强制执行）
 
-对抗式检查验证了"代码结构安全"——但它不能验证**运行时视觉正确**。以下 4 项是脚本扫描不到的、必须由人脑+计算确认的视觉硬指标。**WARN 不是"可以忽略"——WARN 的项目必须在本步骤逐项目测确认。**
+对抗式检查验证了"代码结构安全"——但它不能验证**运行时视觉正确**。以下 5 项中，检查 0 是代码级可验证的（AI 可以做到），检查 1-4 需要目测确认。**WARN 不是"可以忽略"——WARN 的项目必须在本步骤逐项目测确认。**
+
+#### 检查 0：空间一致性（代码级 · AI 强制执行 · 在目测之前）
+
+这一项不需要浏览器。从代码即可验证 5 个层是否共用同一坐标系统：
+
+```
+1. 坐标原点统一：
+   - grep 'position:\s*fixed' → 计数。应 = 1（仅 #pixel-stage）。
+     若 > 1 → 致命：有子层脱离 wrapper 坐标系 → 不同屏幕比例下必然错位。
+   
+2. 尺寸锚点统一：
+   - grep 'vw\|vh' → 是否出现在 .glass-bg / .glass-shell / #interact-layer 中？
+     若是 → 致命：这些层用视口单位，wrapper 用像素单位 → 不一致。
+     应全部使用 %（相对于 wrapper）或 px（与 canvas 一致）。
+   
+3. blur 层级正确：
+   - grep 'backdrop-filter' → 确认只在 .glass-bg { z-index: 2 } 中出现。
+     若出现在 .glass-shell 或任何 z-index ≥ 3 的层 → 致命。
+   
+4. wrapper 裁剪溢出：
+   - #pixel-stage 必须有 overflow: hidden。
+     若缺失 → 警告：::after 菲涅尔高光会溢出到 wrapper 外部。
+   
+5. 容器尺寸 = 画布尺寸：
+   - sizeStage() 中: scale = Math.min(windowWidth/CW, windowHeight/CH)
+     wrapper.width = CW * scale, wrapper.height = CH * scale
+     → wrapper 的 aspect-ratio = CW:CH = 画布 aspect-ratio ✓
+```
+
+**通过标准**：5 项全部 ✅。任何致命项 → 回 STEP 4 修复。不依赖浏览器，AI 可以在代码中直接验证。
+
+**为什么这一步必须放在目测之前**：如果坐标系统不统一，后续 4 项视觉检查（像素可见性、颜色对比度、viewport 响应、运动稳定性）看到的结果本身就是错的——不同层在物理上不重叠，颜色对比度、像素大小都没有意义。
 
 #### 检查 1：像素可见性
 
@@ -592,7 +748,7 @@ console.log(issues.length ? issues.join('\n') : 'All checks passed');
 
 #### 检查 3：viewport 响应
 
-固定画布（如 640×960）通过 `transform: scale()` 适配屏幕。验证不同视口下的视觉：
+固定画布（如 640×960）通过 `#pixel-stage` wrapper + `sizeStage()` 适配屏幕。验证不同视口下的视觉：
 
 ```
 模拟 3 个关键视口（用浏览器 DevTools 或手动 resize）：
@@ -972,4 +1128,159 @@ const moonAlpha      = clamp((0.25 - skyBrightness) * 4, 0, 1) * moonPhase;
 ```
 
 **⚠️ 伪数据驱动反模式**：`skyBrightness < 0.2 ? 1.0 : 0.0` 是二元分支伪装——用 `clamp` 提供连续过渡区间。
+
+---
+
+## 二十、五大硬性铁律（Hard Rules — 全场景强制执行）
+
+> 以下 5 条规则是 pixel-bloom 的"宪法"。任何场景、任何主题、任何画幅比例都必须遵守。违反任一条 = 生成失败。
+
+---
+
+### 铁律 1：渲染领域绝对隔离（Domain Isolation Rule）
+
+**原则**：DOM/CSS 和 Canvas 的职责边界不可逾越。
+
+| 领域 | 允许 | 禁止 |
+|------|------|------|
+| **DOM / CSS** | `#pixel-stage` wrapper 的居中与响应式缩放；`body` 整体大渐变背景；交互层 `#interact-layer` 的事件监听 | 用 `backdrop-filter` / `border` / `box-shadow` / `::after` 绘制拟物化主体（玻璃瓶、气泡、晶体、光晕、水面） |
+| **Canvas** | 所有拟物化主体、高光、阴影、液体、折射、内容物、粒子、FSM 生命体 | 用 CSS 类名选择器控制 Canvas 内部元素；用 DOM 元素叠加模拟 Canvas 内效果 |
+
+**校验方法**：在最终 HTML 中搜索 `backdrop-filter` —— 如果出现在 `.glass-shell` 或任何 z-index ≥ 3 的元素上 → 致命错误。`backdrop-filter` 仅允许出现在 `.glass-bg`（z=2，仅用于非玻璃容器场景的整体底板模糊，且不在 Canvas 玻璃模式下使用）。
+
+---
+
+### 铁律 2：容器类材质的三榻饼管线（Sandwich Render Pipeline）
+
+**原则**：凡涉及"内部装有内容物的容器"（玻璃瓶、水族箱、水晶球、水滴透镜），必须严格按照以下顺序在 Canvas 中绘制。
+
+```
+Pass 1 — 瓶后体块 (Back Mass)
+  ctx.save() → defineContainerPath() → 径向/线性渐变填充（半透明冰蓝→边缘深绿）→ ctx.restore()
+
+Pass 2 — 遮罩裁剪 (Clip Mask)
+  ctx.save() → defineContainerPath() → ctx.clip()
+    → 液体（带波浪水面 + 深度渐变）
+    → 内容物（信纸/小船/生物/气泡）
+    → 用户自定义内容（cfg.drawContents 回调）
+  → ctx.restore()
+
+Pass 3 — 前曲面高光 (Front Specular)
+  ctx.save()
+    → 厚玻璃底沉淀（径向椭圆渐变，暗绿褐）
+    → 菲涅尔边缘描边（不等宽深绿→白亮线→透明→白亮线→深绿）
+    → 曲面条带高光（globalCompositeOperation = 'screen' + bezierCurveTo 沿曲面路径）
+    → 瓶口全反射环（椭圆 stroke + 径向渐变）
+  → ctx.restore()
+```
+
+**校验方法**：若场景含玻璃容器，搜索 `ctx.clip()` 或 `drawingContext.clip()` —— 必须存在。搜索 `globalCompositeOperation` —— 必须在高光 Pass 中出现（`'screen'` 或 `'lighter'`）。
+
+---
+
+### 铁律 3：概念动词 → 代码履约断言（Concept Fulfillment Contract）
+
+**原则**：用户 Prompt 中的每一个动词和意象，必须在代码中有对应的、可验证的技术实现。概念不能停留在"描述"层。
+
+| Prompt 动词 / 意象 | 强制技术实现 | 禁止的"伪履约" |
+|-------------------|-------------|--------------|
+| **"展开"、"揭开"、"慢慢打开"** | `lerp()` 驱动的尺寸/进度变量（0→1），由交互（点击/时间）分段推进。每段有独立的 `lerp` 目标和速度 | 静态图片一次显示；`if(clicked) show=true` 瞬间切换 |
+| **"漂浮"、"漂荡"、"悬浮"** | FSM（Wander 状态）+ Perlin noise 驱动速度与角度（`noise(x*0.01, t*0.3)`），至少 2 个正交方向的缓动 | `random()` 抖动；固定速度直线运动；绝对静止 |
+| **"玻璃"、"水晶"、"透明容器"** | `createLinearGradient` 条带高光（alpha 0.8-1.0）+ `clip()` 遮罩 + 菲涅尔深色边缘描边 | CSS `backdrop-filter: blur()`；纯色 `fill(rgba)` 无渐变；无边缘描边 |
+| **"水"、"液体"、"水面"** | 多正弦叠加波浪线（≥2 个频率分量）+ 深度渐变（浅蓝→深海蓝）+ 水面高光椭圆环 | 纯色 `rect()` 无波浪；单频率正弦（太机械） |
+| **"气泡"、"水珠"** | 正圆 `circle()` + 偏移高光小白圆（Crescent Highlight）+ Perlin 上升轨迹 | `rect()` 圆角气泡；直线上升；无高光 |
+| **"生命"、"生物"、"宠物"** | 状态机 ≥ 3 态（Wander/Chase/Flee 或自定义）+ 呼吸微动（`sin(t*0.05)*0.03`）+ 交互反馈动画 | 静态图片；只有 1 个状态；交互无反馈 |
+| **"光"、"发光"、"光场"** | `globalCompositeOperation = 'screen'` 或 `'lighter'` + 径向渐变光晕（双圈：外光晕大圈低透明度 + 内亮点小圈高透明度） | CSS `box-shadow` 发光；纯色无渐变 |
+
+**校验方法**：逐条提取 Prompt 中的动词和意象词，对照上表检查代码中是否存在对应的技术实现。若 Prompt 含"展开"但代码无 `lerp()` → 概念未履约。
+
+---
+
+### 铁律 4：Frutiger Aero 材质物理规格（Aesthetic Translation Dictionary）
+
+**原则**：当场景要求 Frutiger Aero 风格时，代码必须满足以下物理特征。这不是"建议"——是 Frutiger Aero 的定义性特征。
+
+**禁用清单（Anti-Aero — 出现任一即风格偏离）**：
+- ❌ 暗沉的毛玻璃（frosted blur — 灰白模糊，非通透）
+- ❌ 纯黑阴影（`rgba(0,0,0,x)` — Aero 阴影是深蓝/深绿色调）
+- ❌ 扁平无渐变色块（Flat Design — Aero 的核心是渐变模拟 3D 曲面）
+- ❌ 高饱和原色（`#FF0000` / `#00FF00` / `#0000FF` — Aero 是粉彩柔和色）
+
+**强制清单（Aero Required — 缺一不可）**：
+
+| 特征 | 技术参数 | 视觉结果 |
+|------|---------|---------|
+| 纯白条带/弧形强高光 | `createLinearGradient` 多 stop（0→0.88α 白→0），`globalCompositeOperation = 'screen'`，沿曲面 `bezierCurveTo` 路径 | 晶莹刺眼的曲面镜像反射 |
+| 鲜艳通透液体渐变 | 浅层 `#70d0f0`（Aqua Blue）→ 深层 `#1070a0`（Deep Cyan），`createLinearGradient` 垂直方向 | 水体的深度感和透光感 |
+| 菲涅尔边缘描边 | 深绿/深青 `rgba(15,70,60,0.55)`，不等宽（边缘厚→中心消失），基于光程计算 | 厚玻璃边缘的铁离子吸收 |
+| 上升气泡粒子 | 正圆 + 左上 Crescent 高光 + Perlin 上升轨迹 + 大小变化 | 水下生态的生命感 |
+| 大气光斑（Bokeh） | CSS 径向渐变巨大模糊光斑（`filter: blur(30px)`，`opacity: 0.25`）缓慢漂浮在背景 | 镜头光晕 / 空气感 |
+
+**调色板强制值**：
+
+| 用途 | 色值 | 说明 |
+|------|------|------|
+| Aero 天空顶 | `#a8e6f8` | 清透天蓝 |
+| Aero 水体浅层 | `#70d0f0` | Aqua Blue |
+| Aero 水体深层 | `#1070a0` | Deep Cyan |
+| Aero 玻璃高光峰 | `rgba(255,255,255,0.88)` | 纯白 screen |
+| Aero 叶绿 | `#7DB87D` | Botanical Dew 中绿 |
+| Aero 暖阳 | `#F5E6C8` | Sunlit Meadow 奶油黄 |
+
+---
+
+### 铁律 5：确定性渲染 — 禁止 `random()` 在 `draw()` 中用于静态/半静态元素
+
+**原则**：`draw()` 每秒执行 60 次。在其中调用 `random()` 绘制静态或半静态元素（草丛、树叶、花朵、树木位置、纹理）会导致每秒 60 次帧间闪烁和抖动。
+
+**禁止**：
+```javascript
+// ❌ 每秒 60 次重新随机——闪烁、抖动
+function draw() {
+  for (let i = 0; i < 100; i++) {
+    fill(random(palette));  // 每帧颜色不同 → 闪烁
+    rect(random(width), random(height), px, px); // 每帧位置不同 → 抖动
+  }
+}
+```
+
+**必须**：
+```javascript
+// ✅ setup() 中预生成，draw() 中只用 sin(t) 平滑位移
+let grassBlades = []; // { x, y, color, phase }
+function setup() {
+  for (let i = 0; i < 100; i++) {
+    grassBlades.push({
+      x: hf(i * 12.9898) * width,       // 确定性 hash
+      y: hf(i * 37.373) * height,
+      color: palette[floor(hf(i + 7) * palette.length)], // 确定性选色
+      phase: hf(i * 73.37) * TWO_PI      // 预生成相位
+    });
+  }
+}
+function draw() {
+  for (let g of grassBlades) {
+    let sway = sin(frameCount * 0.03 + g.phase) * 2; // 平滑位移
+    fill(g.color);
+    rect(g.x + sway, g.y, px, px * 3);
+  }
+}
+```
+
+**例外**：以下场景允许在 `draw()` 中使用 `random()`：
+- 一次性粒子爆发（交互触发，非每帧）
+- 云/雾的位置初始化偏移（配合 `noise()` 使用，非独立决定位置）
+- 音效随机触发（不影响视觉）
+
+**校验方法**：在 `<script>` 块中搜索 `draw()` 函数体内的 `random(` 调用。若存在且不在上述例外中 → 致命错误。
+
+---
+
+### 铁律自检清单（STEP 4 生成后强制执行）
+
+- [ ] **规则 1**：搜索 `backdrop-filter` — 是否仅出现在 `.glass-bg`（z=2）？z≥3 的元素禁止
+- [ ] **规则 2**：若场景含玻璃容器 → `ctx.clip()` 存在？`globalCompositeOperation = 'screen'` 在高光 Pass 中出现？
+- [ ] **规则 3**：逐条对照 Prompt 动词与上表——每个动词是否有对应的技术实现？
+- [ ] **规则 4**：搜索 `rgba(0,0,0` / `#000000` / 高饱和原色 → 是否存在 Aero 反模式？
+- [ ] **规则 5**：搜索 `draw()` 内的 `random(` → 是否在例外清单之外？
 

@@ -19,9 +19,24 @@
 
 ---
 
-## 防御性前端骨架（Safari/iOS 兼容）
+## 防御性前端骨架 — Unified Pixel Stage（全视口 / 固定画布双模式）
 
-`backdrop-filter: blur()` 在 Safari 中会强制创建新的层叠上下文，导致 Canvas 被压在毛玻璃下面消失。必须通过 JS 强控层级：
+### 架构铁律：Wrapper 统一坐标系统
+
+**旧反模式**：每个层各自 `position: fixed` + 视口单位（vw/vh），canvas 用 JS 独立定位。各层尺寸不同、坐标系统不同 → 固定画布 640×960 被 90vw×88vh 的玻璃壳 `::after` 白色渐变彻底盖死。
+
+**新铁律**：所有视觉层（光斑 → 玻璃底板 → canvas → 玻璃外壳 → 交互层）必须在同一个容器 `#pixel-stage` 内，使用 `position: absolute` + 百分比单位。容器尺寸 = 画布显示尺寸，由 JS 统一计算。**任何 layer 不得单独使用 `position: fixed`。**
+
+```
+#pixel-stage (position:fixed, 居中于视口, overflow:hidden)
+├── .ambient-light   (position:absolute, z=1, % 单位)
+├── .glass-bg        (position:absolute, z=2, % 单位, 唯一有 backdrop-filter:blur 的层)
+├── <canvas>         (position:absolute, z=3, 填满容器, c.parent('pixel-stage'))
+├── .glass-shell     (position:absolute, z=4, % 单位, 禁止 backdrop-filter)
+└── #interact-layer  (position:absolute, z=5, inset:0)
+```
+
+**模式切换只需改两处**：CSS 中 `#pixel-stage` 的尺寸规则 + JS 中 `createCanvas()` 参数和 `windowResized()` 逻辑。其余所有层无需修改。
 
 ```html
 <!DOCTYPE html>
@@ -53,25 +68,44 @@
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
 
-  /* 环境光斑（底层，z-index: 1）*/
+  /* ═══════════════════════════════════════════════════════════════
+     UNIFIED PIXEL STAGE — 所有视觉层的唯一定位容器
+     ═══════════════════════════════════════════════════════════════
+     固定画布模式：JS 计算 scale 并设置 width/height（保持 aspect-ratio）
+     全视口模式：  取消下面的注释，使用 100vw×100vh
+     overflow:hidden 裁剪溢出的玻璃效果（::after 菲涅尔高光等）*/
+  #pixel-stage {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+    /* width / height 由 JS 的 sizeStage() 动态计算 */
+  }
+  /* ── 切换为全视口模式（取消注释以下 4 行，同时修改 JS 中 createCanvas）──
+  #pixel-stage {
+    width: 100vw; height: 100vh; top: 0; left: 0; transform: none;
+  }
+  */
+
+  /* 环境光斑（z-index: 1 — 相对于 #pixel-stage，% 单位）*/
   .ambient-light {
-    position: fixed; z-index: 1; pointer-events: none; border-radius: 50%;
+    position: absolute; z-index: 1; pointer-events: none; border-radius: 50%;
     background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, transparent 60%);
   }
 
-  /* 毛玻璃底板（z-index: 2 — canvas 之下）*/
+  /* 毛玻璃底板（z-index: 2 — canvas 之下。唯一允许 backdrop-filter 的层）*/
   .glass-bg {
-    position: fixed; z-index: 2; pointer-events: none;
-    top: 6vh; left: 5vw; right: 5vw; bottom: 6vh;
+    position: absolute; z-index: 2; pointer-events: none;
+    top: 3%; left: 3%; right: 3%; bottom: 3%;
     border-radius: 24px;
     background: rgba(255,255,255,0.12);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   }
 
-  /* 透明玻璃外壳（z-index: 4 — canvas 之上，无 blur）*/
+  /* 透明玻璃外壳（z-index: 4 — canvas 之上。禁止 backdrop-filter）*/
   .glass-shell {
-    position: fixed; z-index: 4; pointer-events: none;
-    top: 6vh; left: 5vw; right: 5vw; bottom: 6vh; border-radius: 24px;
+    position: absolute; z-index: 4; pointer-events: none;
+    top: 3%; left: 3%; right: 3%; bottom: 3%; border-radius: 24px;
     border-top: 2px solid rgba(255,255,255,0.85);
     border-left: 2px solid rgba(255,255,255,0.5);
     border-right: 1px solid rgba(255,255,255,0.25);
@@ -81,84 +115,490 @@
   }
   .glass-shell::after {
     content: ''; position: absolute;
-    top: -20%; left: -5%; width: 120%; height: 45%;
+    top: -5%; left: -2%; width: 104%; height: 35%;
     background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
-    border-radius: 50%; transform: rotate(-10deg);
+    border-radius: 50%; transform: rotate(-8deg);
+    /* #pixel-stage 的 overflow:hidden 裁剪溢出部分，防止覆盖画布外部 */
   }
 
-  /* 交互拦截层（z-index: 5）*/
-  #interact-layer { position: fixed; inset: 0; z-index: 5; }
+  /* 交互拦截层（z-index: 5，填满整个容器）*/
+  #interact-layer { position: absolute; inset: 0; z-index: 5; }
 </style>
 </head>
 <body>
 
-<!-- ⚠️ 开放场景（像素风景/森林·开放模式）：删除以下三板——毛玻璃是封闭容器专属 -->
-<div class="ambient-light" style="width:30vw;height:30vw;top:-5%;left:5%;"></div>
-<div class="ambient-light" style="width:22vw;height:22vw;bottom:8%;right:5%;"></div>
-<div class="glass-bg"></div>
-<div class="glass-shell"></div>
-<div id="interact-layer"></div>
+<div id="pixel-stage">
+  <!-- ⚠️ 开放场景（像素风景/森林·开放模式）：删除以下三板——毛玻璃是封闭容器专属 -->
+  <div class="ambient-light" style="width:30%;height:30%;top:-5%;left:5%;"></div>
+  <div class="ambient-light" style="width:22%;height:22%;bottom:8%;right:5%;"></div>
+  <div class="glass-bg"></div>
+  <div class="glass-shell"></div>
+  <div id="interact-layer"></div>
+</div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+// 固定画布模式：设置像素分辨率 → canvas CSS 填满 wrapper → 像素级缩放
+// 全视口模式：  注释 CW/CH，createCanvas(windowWidth,windowHeight)
+// ═══════════════════════════════════════════════════════════════
+let CW = 640, CH = 960;
+
 function setup() {
-  let cvs = createCanvas(windowWidth, windowHeight);
-  // 固定画布场景：createCanvas(CW,CH) + CSS transform:scale()，删 windowResized，不加 pixelDensity(1)
-  // 致命关键：JS 强控层级，夹在 glass-bg(2) 和 glass-shell(4) 之间
-  cvs.style('position', 'fixed');
-  cvs.style('top', '0');
-  cvs.style('left', '0');
+  let cvs = createCanvas(CW, CH);
+  cvs.parent('pixel-stage');
+
+  // Canvas 填满父容器 #pixel-stage（CSS 缩放，image-rendering:pixelated 保持锐利）
+  cvs.style('display', 'block');
+  cvs.style('position', 'absolute');
+  cvs.style('top', '0'); cvs.style('left', '0');
+  cvs.style('width', '100%'); cvs.style('height', '100%');
   cvs.style('z-index', '3');
   cvs.style('pointer-events', 'none');
-  // 增加水下景深感
+  cvs.style('image-rendering', 'pixelated');
   cvs.style('filter', 'drop-shadow(0px 8px 6px rgba(0,80,120,0.15))');
 
-  pixelDensity(1);
   noSmooth();
+  pixelDensity(1);
 
-  // 致命铁律：CW=width; CH=height; 必须在所有 new XXX() 之前。
-  // 全局 let CW,CH 初始为 undefined → 过早访问导致 NaN → 静默白屏。
-  CW = width; CH = height;
-  // 所有依赖画布尺寸的实体初始化放在这行之后
+  CW = width; CH = height;  // 确认实际分辨率
+  sizeStage();  // 计算 wrapper CSS 显示尺寸
+
+  // ⚠️ 所有依赖画布尺寸的实体初始化放在 sizeStage() 之后
+}
+
+// ── Wrapper 尺寸计算 ──
+// 根据画布像素尺寸 × 视口大小，计算 #pixel-stage 的 CSS 显示尺寸。
+// 结果：wrapper 居中于视口，保持画布 aspect-ratio，所有子层自动对齐。
+function sizeStage() {
+  const stage = document.getElementById('pixel-stage');
+  const scale = Math.min(windowWidth / CW, windowHeight / CH);
+  stage.style.width  = Math.floor(CW * scale) + 'px';
+  stage.style.height = Math.floor(CH * scale) + 'px';
 }
 
 function draw() {
-  clear(); // 透明背景，让 CSS 渐变透出
+  clear(); // 透明背景 → body 渐变 → glass-bg blur → canvas 像素层
 }
 
+// 固定画布模式：只重算 wrapper 尺寸，不改变 canvas 分辨率。
+// 全视口模式：改为 resizeCanvas(windowWidth, windowHeight); pixelDensity(1);
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  pixelDensity(1); // 缩放后必须重设
+  sizeStage();
 }
 </script>
 </body>
 </html>
 ```
 
-**关键点：** 验证 canvas z-index=3 夹在底板(2)和外壳(4)之间，pointer-events:none，外壳无 blur。
+**关键点：**
+- 所有层（光斑/玻璃底板/玻璃外壳/交互层）使用 `position: absolute` + `%` 单位，相对于 `#pixel-stage`
+- **`backdrop-filter: blur()` 只存在于 `.glass-bg`（z=2，canvas 之下）**——外壳层（z=4）绝对禁止
+- Canvas 通过 `c.parent('pixel-stage')` 挂入容器，CSS `width:100%; height:100%` 填满
+- `#pixel-stage` 的 `overflow: hidden` 裁剪 `::after` 菲涅尔高光溢出，防止覆盖画布外部
+- 固定画布模式：`windowResized()` 只调 `sizeStage()`，不改 canvas 分辨率 → 像素永远锐利
+- 全视口模式：取消 CSS 注释 + `createCanvas(windowWidth, windowHeight)` + `resizeCanvas(windowWidth, windowHeight)`
 
 ---
 
-## 基础造型配方
+## 玻璃容器渲染（Canvas-Only Frutiger Aero Glass Pipeline）
 
-### Frutiger Aero 标准气泡（铁律）
+> **铁律：玻璃的形状、折射与高光必须 100% 在 Canvas 内部绘制。禁止使用 CSS `backdrop-filter` / `border-radius` / `box-shadow` 模拟玻璃容器。**
 
-Aero 气泡必须是正圆 `circle()`，绝对禁止使用圆角矩形 `rect()`。高光为同心偏移的实心小白圆，产生曲面反射感。
+### 理论基石（为什么 CSS 永远做不出真玻璃）
+
+Frutiger Aero 拟物玻璃不是"半透明白色 + 模糊"。它由三个物理光学效应叠加而成：
+
+| 效应 | 物理原理 | CSS 能做什么 | Canvas 能做什么 |
+|------|---------|-------------|----------------|
+| **菲涅尔反射** | 视线越贴近曲面切线 → 反射率越高。正对时反射 ~4%（F0），掠射时反射 ~100% | `linear-gradient` 固定角度，不随曲面曲率变化 | 沿曲面法线计算 `schlick(cosθ)`，边缘自动亮起 |
+| **比尔吸收** | 光穿过玻璃的路径越长 → 被吸收越多。边缘路径 > 中心路径 → 边缘更暗/更绿 | 无厚度概念，只能 `box-shadow: inset` 均匀内发光 | 计算每个像素的光程 `thickness = 2√(r²-d²)`，边缘指数衰减 |
+| **曲面高光** | 环境光源在曲面上的镜像反射。柱面玻璃 = 条带状，球面玻璃 = 点状，瓶口 = 环状 | `::after` 对角线固定渐变，不随曲面曲率走向 | `beginShape()` + `bezierCurveTo()` 沿曲面绘制条带状高光 + `globalCompositeOperation: screen` |
+
+**关键公式（2D 简化版）：**
 
 ```javascript
-function drawAeroBubble(x, y, size) {
-  push();
-  // 1. 晶莹剔透的外壳（极细白边）
-  noFill(); stroke(255, 200); strokeWeight(1.5);
-  circle(x, y, size);
+// Schlick Fresnel 近似
+// cosTheta = 曲面法线与视线夹角。中心=1（正对），边缘=0（掠射）
+// F0 = 0.04（玻璃 IOR ≈ 1.5）
+function fresnel(cosTheta) {
+  return 0.04 + 0.96 * Math.pow(1 - cosTheta, 5);
+}
 
-  // 2. 曲面高光（向左上角偏移的纯白小圆 — Crescent Highlight）
-  noStroke(); fill(255, 255);
-  let hOff = size * 0.18;
-  let hSize = size * 0.35;
-  circle(x - hOff, y - hOff, hSize);
-  pop();
+// Beer-Lambert 吸收
+// thickness = 2 * sqrt(radius² - distFromCenter²)（球体光程）
+// sigma = 吸收系数（玻璃越绿，G 通道 sigma 越小）
+function beerAttenuation(thickness, sigma) {
+  return Math.exp(-sigma * thickness);
 }
 ```
+
+### 渲染管线：三榻饼（Sandwich）结构
+
+全部在 Canvas 内部完成，与 CSS 彻底隔绝：
+
+```
+1. ctx.save() → defineBottlePath() → 瓶后体块（径向渐变底色）→ ctx.restore()
+2. ctx.save() → defineBottlePath() → ctx.clip() → [瓶内水体/信纸/小船/气泡] → ctx.restore()
+3. ctx.save() → [瓶底沉淀厚度] → [菲涅尔边缘描边] → [曲面条带高光screen] → [瓶口反射环] → ctx.restore()
+4. ctx.save() → [软木塞3D圆柱体] → ctx.restore()
+```
+
+---
+
+### 完整代码模板
+
+```javascript
+// ============================================================
+// § 玻璃容器渲染 (Frutiger Aero Glass Container System)
+// 基于 Schlick Fresnel + Beer-Lambert + Clip Mask Pipeline
+// 依赖：p5.js (noSmooth + pixelDensity(1))
+// ============================================================
+
+/**
+ * 绘制完整的拟物化玻璃漂流瓶及其内部生态
+ * @param {Object} cfg — { x, y, w, h, liquidLevel, time, drawContents }
+ *   x, y      — 瓶子包围盒中心
+ *   w, h      — 瓶子包围盒宽高（瓶身最大宽度 × 总高度）
+ *   liquidLevel — 水面高度 0.0(空)~1.0(满)，默认 0.5
+ *   time      — 时间参数（秒），用于波浪动画
+ *   drawContents(ctx, bounds) — 回调：在 clip 遮罩内绘制瓶内物体
+ *     bounds = { x, y, w, h, waterY, bottlePath }
+ */
+function drawAeroGlassBottle(cfg) {
+  const { x, y, w, h, liquidLevel = 0.5, time = 0 } = cfg;
+  const ctx = drawingContext; // p5.js 暴露的原生 Canvas2D 上下文
+
+  // ═══════════════════════════════════════════════════════
+  // 1. 瓶身路径（贝塞尔曲线 — 类药瓶/漂流瓶形状）
+  // ═══════════════════════════════════════════════════════
+  function defineBottlePath() {
+    ctx.beginPath();
+    // 瓶颈 — 直线段
+    const neckW = w * 0.18;          // 瓶颈半宽
+    const neckTop = y - h * 0.48;    // 瓶口顶部 Y
+    const neckBot = y - h * 0.30;    // 瓶颈底部 Y
+    const bodyTop = y - h * 0.12;    // 瓶肩结束 Y
+    const bodyBot = y + h * 0.38;    // 瓶底 Y
+    const bodyW = w * 0.48;          // 瓶身半宽
+    const baseR = w * 0.05;          // 瓶底圆角半径
+
+    // 瓶口左上 → 瓶颈左上
+    ctx.moveTo(x - neckW, neckTop);
+    ctx.lineTo(x - neckW, neckBot);
+
+    // 左肩曲线（瓶颈 → 瓶身）
+    ctx.bezierCurveTo(
+      x - neckW, bodyTop,           // 控制点 1
+      x - bodyW * 1.05, bodyTop,    // 控制点 2
+      x - bodyW, y + h * 0.05       // 终点（瓶身左侧）
+    );
+
+    // 左壁 → 瓶底左圆角
+    ctx.lineTo(x - bodyW, bodyBot - baseR);
+    ctx.quadraticCurveTo(x - bodyW, bodyBot + baseR, x - bodyW + baseR, bodyBot + baseR);
+
+    // 瓶底弧线
+    ctx.quadraticCurveTo(x, bodyBot + baseR * 1.8, x + bodyW - baseR, bodyBot + baseR);
+
+    // 瓶底右圆角 → 右壁
+    ctx.quadraticCurveTo(x + bodyW, bodyBot + baseR, x + bodyW, bodyBot - baseR);
+    ctx.lineTo(x + bodyW, y + h * 0.05);
+
+    // 右肩曲线（瓶身 → 瓶颈）
+    ctx.bezierCurveTo(
+      x + bodyW * 1.05, bodyTop,
+      x + neckW, bodyTop,
+      x + neckW, neckBot
+    );
+
+    // 瓶颈右上 → 瓶口右上
+    ctx.lineTo(x + neckW, neckTop);
+
+    // 瓶口顶线
+    ctx.lineTo(x - neckW, neckTop);
+    ctx.closePath();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // 2. 瓶后体块 — 玻璃背壁的透光底色
+  // ═══════════════════════════════════════════════════════
+  ctx.save();
+  defineBottlePath();
+
+  // 径向渐变：中心透亮（冰蓝-青绿），边缘向深绿过渡
+  const backGrad = ctx.createRadialGradient(x, y - h * 0.05, w * 0.08, x, y, h * 0.55);
+  backGrad.addColorStop(0, 'rgba(210, 245, 255, 0.12)');   // 中心 — 极淡冰蓝
+  backGrad.addColorStop(0.5, 'rgba(160, 225, 210, 0.18)');  // 中间 — 淡青绿
+  backGrad.addColorStop(0.85, 'rgba(80, 170, 150, 0.30)');  // 近边缘 — 中绿（比尔吸收）
+  backGrad.addColorStop(1, 'rgba(30, 100, 85, 0.45)');      // 极边缘 — 深绿
+  ctx.fillStyle = backGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // ═══════════════════════════════════════════════════════
+  // 3. 遮罩裁剪管线 — 所有瓶内物体在此闭包内绘制
+  // ═══════════════════════════════════════════════════════
+  ctx.save();
+  defineBottlePath();
+  ctx.clip();
+
+  // —— 3a. 瓶内水体 ——
+  const waterTop = y + h * 0.38 - (h * 0.65 * liquidLevel);
+
+  // 水体底色（自上而下：浅蓝 → 深海蓝）
+  const waterGrad = ctx.createLinearGradient(0, waterTop, 0, y + h * 0.45);
+  waterGrad.addColorStop(0, 'rgba(120, 215, 240, 0.70)');
+  waterGrad.addColorStop(0.3, 'rgba(60, 170, 210, 0.80)');
+  waterGrad.addColorStop(1, 'rgba(15, 80, 140, 0.92)');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(x - w, waterTop, w * 2, y + h * 0.5 - waterTop);
+
+  // 水面波浪线
+  ctx.fillStyle = 'rgba(180, 230, 250, 0.55)';
+  ctx.beginPath();
+  ctx.moveTo(x - w, waterTop);
+  for (let lx = -w; lx <= w; lx += 4) {
+    const waveY = waterTop + Math.sin(lx * 0.035 + time * 2.5) * 5
+                           + Math.sin(lx * 0.07 + time * 1.7) * 3;
+    ctx.lineTo(x + lx, waveY);
+  }
+  ctx.lineTo(x + w, y + h * 0.5);
+  ctx.lineTo(x - w, y + h * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // 水面高光环（椭圆形，模拟瓶内水面反光）
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.beginPath();
+  ctx.ellipse(x, waterTop + 4, w * 0.40, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // —— 3b. 上升气泡 ——
+  for (let i = 0; i < 8; i++) {
+    const bx = x + Math.sin(time * 1.3 + i * 1.9) * (w * 0.32);
+    const rise = ((time * 22 + i * 47) % (h * 0.55));
+    const by = waterTop + 12 + rise;
+    if (by < y + h * 0.45 && by > waterTop + 4) {
+      // 气泡高光
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.beginPath();
+      ctx.arc(bx, by, 1.5 + (i % 3) * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      // 高光点
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.beginPath();
+      ctx.arc(bx - 0.8, by - 0.8, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // —— 3c. 用户自定义内容（信纸/小船等）——
+  if (cfg.drawContents) {
+    cfg.drawContents(ctx, { x, y, w, h, waterY: waterTop, bottlePath: defineBottlePath });
+  }
+
+  ctx.restore(); // ★ 结束 clip
+
+  // ═══════════════════════════════════════════════════════
+  // 4. 瓶前玻璃曲面 — 拟物核心（按绘制顺序叠加）
+  // ═══════════════════════════════════════════════════════
+
+  // —— 4a. 瓶底沉淀厚度（Thick Glass Base）——
+  // 玻璃底部最厚 → 颜色最深 → 径向椭圆渐变
+  ctx.save();
+  const baseGrad = ctx.createLinearGradient(0, y + h * 0.32, 0, y + h * 0.46);
+  baseGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  baseGrad.addColorStop(0.4, 'rgba(25, 85, 70, 0.28)');
+  baseGrad.addColorStop(0.75, 'rgba(10, 60, 50, 0.50)');
+  baseGrad.addColorStop(1, 'rgba(5, 35, 30, 0.65)');
+  ctx.fillStyle = baseGrad;
+  ctx.beginPath();
+  ctx.ellipse(x, y + h * 0.40, w * 0.44, h * 0.06, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // —— 4b. 菲涅尔边缘厚度描边（Fresnel Dark/Green Edge Rim）——
+  // 玻璃边缘 = 光程最长 → 最暗最绿
+  ctx.save();
+  defineBottlePath();
+  const edgeGrad = ctx.createLinearGradient(x - w * 0.5, 0, x + w * 0.5, 0);
+  edgeGrad.addColorStop(0, 'rgba(15, 70, 60, 0.55)');    // 左边缘 — 深绿
+  edgeGrad.addColorStop(0.08, 'rgba(255, 255, 255, 0.75)'); // 左侧内亮线
+  edgeGrad.addColorStop(0.2, 'rgba(255, 255, 255, 0.06)'); // 过渡
+  edgeGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.0)');  // 中心 — 透明
+  edgeGrad.addColorStop(0.8, 'rgba(255, 255, 255, 0.05)'); // 过渡
+  edgeGrad.addColorStop(0.92, 'rgba(255, 255, 255, 0.40)'); // 右侧内亮线
+  edgeGrad.addColorStop(1, 'rgba(12, 55, 45, 0.45)');     // 右边缘 — 深绿
+  ctx.strokeStyle = edgeGrad;
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // —— 4c. 曲面主高光条（Curved Specular Bar）——
+  // ★ 关键：使用 globalCompositeOperation = 'screen' 实现光叠加
+  // 高光沿左侧瓶身曲面弯曲，模拟环境矩形光源在柱面上的镜像反射
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  const specGrad = ctx.createLinearGradient(x - w * 0.45, 0, x - w * 0.05, 0);
+  specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.0)');
+  specGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.88)'); // 刺眼强高光峰
+  specGrad.addColorStop(0.55, 'rgba(210, 245, 255, 0.35)'); // 扩散
+  specGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+
+  ctx.fillStyle = specGrad;
+  ctx.beginPath();
+  // 沿左侧瓶身曲面走势的高光条带
+  const bodyTop = y - h * 0.12;
+  const bodyBot = y + h * 0.38;
+  const bodyW = w * 0.48;
+  const hlInner = w * 0.14;    // 高光内缘距中心距离
+  const hlOuter = w * 0.42;    // 高光外缘距中心距离
+
+  ctx.moveTo(x - hlInner, y - h * 0.45);
+  ctx.bezierCurveTo(x - hlInner * 0.9, bodyTop, x - hlOuter * 0.95, bodyTop, x - hlOuter, y + h * 0.08);
+  ctx.lineTo(x - hlOuter, bodyBot - w * 0.06);
+  ctx.quadraticCurveTo(x - hlOuter * 0.9, bodyBot + w * 0.02, x - hlInner * 0.7, bodyBot);
+  ctx.lineTo(x - hlInner * 0.7, y + h * 0.08);
+  ctx.bezierCurveTo(x - hlInner * 0.8, bodyTop, x - hlInner * 0.3, bodyTop, x - hlInner * 0.3, y - h * 0.45);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore(); // 恢复 blend mode
+
+  // —— 4d. 瓶口全反射光环（Mouth Ring Reflection）——
+  // 圆形瓶口边缘 = 光线在玻璃-空气界面全反射 → 亮环
+  ctx.save();
+  const mouthY = y - h * 0.48;
+  const mouthW = w * 0.18;
+  const mouthGrad = ctx.createLinearGradient(x - mouthW, 0, x + mouthW, 0);
+  mouthGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)');   // 左 — 刺眼
+  mouthGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.25)'); // 左中 — 衰减
+  mouthGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.10)');  // 中心 — 几乎透明
+  mouthGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.30)'); // 右中
+  mouthGrad.addColorStop(1, 'rgba(255, 255, 255, 0.75)');    // 右 — 亮
+  ctx.strokeStyle = mouthGrad;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(x, mouthY, mouthW, h * 0.018, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 瓶口内缘第二圈（稍细、稍暗）
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.30)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.ellipse(x, mouthY, mouthW * 0.88, h * 0.013, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // ═══════════════════════════════════════════════════════
+  // 5. 软木塞层（3D Cork Stopper）
+  // ═══════════════════════════════════════════════════════
+  ctx.save();
+  const corkW = w * 0.32;
+  const corkH = h * 0.07;
+  const corkX = x - corkW / 2;
+  const corkTop = y - h * 0.48 - corkH * 0.75;
+
+  // 木塞本体 — 3D 圆柱侧面渐变（亮面→固有色→暗面→反光→暗面）
+  const corkGrad = ctx.createLinearGradient(corkX, 0, corkX + corkW, 0);
+  corkGrad.addColorStop(0, '#7a4e2d');    // 左阴影边
+  corkGrad.addColorStop(0.15, '#c49464'); // 高光脊（左上光源）
+  corkGrad.addColorStop(0.4, '#d4a878');  // 固有色亮部
+  corkGrad.addColorStop(0.6, '#b8845c');  // 固有色暗部
+  corkGrad.addColorStop(0.85, '#e0c098'); // 右反光带（环境光反射）
+  corkGrad.addColorStop(1, '#5a3520');    // 右深阴影边
+
+  // 圆角矩形（上圆角大、下圆角小 — 模拟上大下小的瓶塞）
+  ctx.fillStyle = corkGrad;
+  ctx.beginPath();
+  const crTop = 5, crBot = 3;
+  ctx.moveTo(corkX + crTop, corkTop);
+  ctx.lineTo(corkX + corkW - crTop, corkTop);
+  ctx.quadraticCurveTo(corkX + corkW, corkTop, corkX + corkW, corkTop + crTop);
+  ctx.lineTo(corkX + corkW, corkTop + corkH - crBot);
+  ctx.quadraticCurveTo(corkX + corkW, corkTop + corkH, corkX + corkW - crBot, corkTop + corkH);
+  ctx.lineTo(corkX + crBot, corkTop + corkH);
+  ctx.quadraticCurveTo(corkX, corkTop + corkH, corkX, corkTop + corkH - crBot);
+  ctx.lineTo(corkX, corkTop + crTop);
+  ctx.quadraticCurveTo(corkX, corkTop, corkX + crTop, corkTop);
+  ctx.closePath();
+  ctx.fill();
+
+  // 木塞竖向纹理（软木孔隙线）
+  ctx.strokeStyle = 'rgba(80, 40, 15, 0.20)';
+  ctx.lineWidth = 1.0;
+  const seamCount = 5;
+  for (let i = 1; i <= seamCount; i++) {
+    const sx = corkX + (corkW / (seamCount + 1)) * i;
+    // 轻微随机偏移（确定性 hash）
+    const jitter = ((i * 17 + 3) % 7 - 3) * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(sx + jitter, corkTop + 2);
+    ctx.lineTo(sx - jitter * 0.5, corkTop + corkH - 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+```
+
+### 集成到 setup() 中的调用方式
+
+```javascript
+// 在 draw() 中调用 — 瓶子绘制在 Canvas 内部，与其他像素元素共享同一画布
+function draw() {
+  clear(); // 透明背景 → body CSS 渐变透出
+
+  // 1. 先绘制瓶后背景元素（远处波浪、天空等，如有）
+  // drawDistantBackground();
+
+  // 2. 绘制瓶子及其内部生态
+  drawAeroGlassBottle({
+    x: CW / 2,        // 瓶子中心 X（画布中央）
+    y: CH * 0.55,     // 瓶子中心 Y（偏下，给软木塞留空间）
+    w: CW * 0.38,     // 瓶身宽度
+    h: CH * 0.72,     // 瓶子高度
+    liquidLevel: 0.55,
+    time: millis() * 0.001,
+    drawContents: (ctx, bounds) => {
+      // 在此 callback 内绘制瓶内自定义物体
+      // 所有绘制自动被瓶身 clip 遮罩裁剪
+      // drawPaperBoat(ctx, bounds);
+      // drawFoldedLetter(ctx, bounds);
+    }
+  });
+
+  // 3. 绘制瓶外元素（前景波浪、泡沫等）
+  // drawForegroundWaves();
+}
+```
+
+### 铁律（Iron Law）
+
+**三条禁止**：
+1. ❌ 禁止使用 CSS `backdrop-filter: blur()` 或 `border-radius` 模拟玻璃容器形状或质感
+2. ❌ 禁止将玻璃高光放在独立 CSS 层（`::after` / `.glass-shell`）— 高光必须沿 Canvas 曲面路径绘制
+3. ❌ 禁止在无 `ctx.save()`/`ctx.restore()` 保护下调用 `ctx.clip()` — 裁剪区域不可逆
+
+**三条强制**：
+1. ✅ 所有瓶内物体（水、船、信纸、气泡）必须包裹在 `ctx.save()` → `defineBottlePath()` → `ctx.clip()` → `[内容]` → `ctx.restore()` 闭包中
+2. ✅ 玻璃高光必须包含三项：沿曲面带状渐变条（`globalCompositeOperation = 'screen'`）+ 瓶口椭圆全反射环 + 菲涅尔绿/暗色边缘描边
+3. ✅ 曲面高光条带路径必须使用 `bezierCurveTo()` 跟随瓶身曲线走向 — 禁止 `rect()` 或 `circle()` 替代
+
+### 调色板参考：Frutiger Aero 玻璃色
+
+| 用途 | 色值 | 说明 |
+|------|------|------|
+| 瓶后透光中心 | `rgba(210,245,255,0.12)` | 冰蓝 — 极淡，模拟薄玻璃中心透光 |
+| 瓶后透光边缘 | `rgba(30,100,85,0.45)` | 深绿 — 比尔吸收后边缘色 |
+| 菲涅尔边缘描边 | `rgba(15,70,60,0.55)` | 深墨绿 — 光程最长处 |
+| 高光峰 | `rgba(255,255,255,0.88)` | 纯白 — screen 混合下刺眼亮 |
+| 瓶底沉淀 | `rgba(5,35,30,0.65)` | 暗绿褐 — 最厚玻璃底 |
+| 软木塞固有色 | `#d4a878` | 暖木色 — 与玻璃冷色形成冷暖对比 |
+| 软木塞阴影边 | `#5a3520` | 深棕 — 3D 圆柱暗面 |
+
+
 
 ### 像素角色（通用 Sprite 网格）
 
@@ -376,19 +816,47 @@ document.getElementById('interact-layer').addEventListener('pointerdown', (e) =>
 
 交付前逐条确认：
 
-- [ ] 全视口：`pixelDensity(1)` + `noSmooth()`，`windowResized` 中重设。固定画布：仅 `noSmooth()`，无 `pixelDensity(1)`，无 `windowResized`
+**🔴 架构（致命 — 不通过则页面必然异常）：**
+
+**五大铁律自检（`design-principles.md §二十` — 生成后强制执行）：**
+- [ ] **铁律 1**：搜索 `backdrop-filter` → 仅出现在 `.glass-bg`（z=2）？z≥3 的元素禁止
+- [ ] **铁律 2**：若场景含玻璃容器 → `ctx.clip()` 存在？`globalCompositeOperation = 'screen'` 在高光中出现？
+- [ ] **铁律 3**：逐条对照 Prompt 动词与履约表 → 每个动词都有对应的技术实现？
+- [ ] **铁律 4**：无 `rgba(0,0,0` 纯黑阴影？无 `#FF0000` 高饱和原色？无扁平无渐变色块？
+- [ ] **铁律 5**：`draw()` 内的 `random(` 调用次数 ≤ 2（音效/一次性粒子）？
+
+**Wrapper + CSS 层：**
+- [ ] 存在 `#pixel-stage` wrapper，所有玻璃层 + canvas + 交互层在其内部
+- [ ] 所有层（`.ambient-light` / `.glass-bg` / `.glass-shell` / `#interact-layer`）使用 `position: absolute`（非 `fixed`），`%` 单位相对于 wrapper
+- [ ] Canvas 通过 `c.parent('pixel-stage')` 挂入 wrapper，CSS `width:100%; height:100%` 填满
+- [ ] `#pixel-stage` 有 `overflow: hidden`（裁剪溢出的玻璃效果）
+- [ ] `backdrop-filter: blur()` **仅**存在于 `.glass-bg`（z=2，canvas 之下）——外壳层 `.glass-shell`（z=4）绝对禁止 blur
+- [ ] 固定画布：`windowResized()` 只调 `sizeStage()`，不改 canvas 分辨率；全视口：`resizeCanvas(windowWidth, windowHeight)` + `pixelDensity(1)`
+
+**🔴 Canvas 玻璃容器（若场景含玻璃瓶/水族箱/玻璃罩）：**
+- [ ] 玻璃容器 100% 在 Canvas 内通过 `drawAeroGlassBottle()` 绘制 — 禁止用 CSS `backdrop-filter` / `border-radius` 模拟容器形状
+- [ ] 瓶内物体包裹在 `ctx.save()` → `defineBottlePath()` → `ctx.clip()` → `[内容]` → `ctx.restore()` 闭包中
+- [ ] 玻璃高光包含三项：曲面带状渐变（`globalCompositeOperation = 'screen'`）+ 瓶口反射环 + 菲涅尔边缘描边
+- [ ] 高光路径使用 `bezierCurveTo()` / `quadraticCurveTo()` 跟随瓶身曲面 — 非 `rect()` 或 `circle()` 替代
+- [ ] 瓶底有沉淀厚度渐变（`createLinearGradient` 径向椭圆，模拟厚玻璃底）
+- [ ] 软木塞有 3D 圆柱渐变（4-5 段 stop：阴→高光脊→固有色→反光→阴）+ 竖向纹理线
+
+**🟡 渲染：**
+- [ ] 全视口：`pixelDensity(1)` + `noSmooth()`，`windowResized` 中重设。固定画布：`noSmooth()` + `image-rendering: pixelated`
 - [ ] `clear()` 而非 `background()`，CSS 背景透出
-- [ ] Canvas 使用 JS 强控 `position:fixed; z-index:3`（夹在底板和外壳之间）
-- [ ] 毛玻璃 `backdrop-filter: blur()` 在 canvas 下层，外壳层无 blur
+- [ ] Canvas 有 CSS `filter: drop-shadow()` 产生景深感
 - [ ] 运动浮点计算 + `translate(round())` 对齐，不对坐标做 grid snap
+- [ ] 气泡使用 `circle()` + 偏移高光，禁止 `rect()` 气泡
+
+**🟢 交互：**
 - [ ] 交互使用自定义 `pointerdown` + 300ms 时间差，非 p5 内置事件
+- [ ] 移动端：`user-scalable=no`，`touch-action: none`
 - [ ] 主体角色有状态机（≥ 3 个状态：wander / chase / flee）
 - [ ] 主体角色有动画反馈（尾巴摆动/爱心/缩放/颜色变化等）
-- [ ] 气泡使用 `circle()` + 偏移高光，禁止 `rect()` 气泡
+
+**🔵 视觉：**
 - [ ] 环境 ≥ 2 种形态装饰元素（至少使用 2 种程序化生成模型）
 - [ ] 颜色来自预设调色板数组，非每个物体独立随机 RGB
-- [ ] Canvas 有 CSS `filter: drop-shadow()` 产生景深感
-- [ ] 移动端：`user-scalable=no`，`touch-action: none`
 - [ ] 字体栈使用 Frutiger Aero 栈（`"Segoe UI","Frutiger","Trebuchet MS","PingFang SC",sans-serif`）
 - [ ] 文字带发光白边（`text-shadow:0 1px 2px rgba(255,255,255,.8)`）
 - [ ] 无纯黑字体（统一深海蓝 `#1a4a5e` 或半透明白 `rgba(255,255,255,.85)`）
