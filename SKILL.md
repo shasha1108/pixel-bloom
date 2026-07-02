@@ -1,11 +1,10 @@
 ---
 name: pixel-bloom
 description: >
-  Build pixel-art interactive H5 pages with Frutiger Aero glassmorphism — cyber pets, pixel gardens,
-  digital aquariums, pixel forests, or any pixel lifeform scene. Trigger on any request involving
-  pixel art + interactivity + glassmorphism, even if the user doesn't say "pixel" (像素盆栽,
-  赛博宠物, pixel bloom, etc.). Do NOT trigger for: Three.js 3D scenes (→ healing-space),
-  static pixel art without interactivity, non-pixel vector illustrations.
+  Trigger when user requests pixel-art interactive H5 scenes with Frutiger Aero glassmorphism —
+  even if they don't say "pixel" (像素盆栽, 赛博宠物, 水族箱, 像素森林, etc.).
+  Do NOT trigger for: Three.js 3D scenes (→ healing-space), static pixel art without
+  interactivity, non-pixel vector illustrations.
 ---
 
 # Pixel Bloom — 像素生命的绽放
@@ -26,21 +25,22 @@ description: >
 
 | 时机 | 文件 | 内容 | 加载方式 |
 |------|------|------|---------|
-| 启动时必读 | `references/design-principles.md` | 19 节通用设计原则：架构/形状/运动/材质/交互/色彩/音效/排版/反模式/Ganzfeld/参数设计/像素锚定/对抗式检查/视觉验证/第一性原理/概念偏置/风速场/性能铁律/星空 | **必读全部** |
-| STEP 1-3 执行时必读 | `references/generation-workflow.md` | STEP 0-3 执行细节：画幅选项 / 场景模式表 / 拆解示例 / 技术决策表 | **必读全部** |
+| 启动时必读 | `references/design-principles.md` | 铁律/架构/形状/运动/材质/交互/色彩/音效/反模式/听觉/排版/参数/像素锚定/对抗检查/第一性原理/概念偏置/风场/性能/星空/Ganzfeld | **必读 §一~§十七；§十八~§廿一 按场景翻阅** |
+| STEP 1-3 执行时必读 | `references/generation-workflow.md` | STEP 1-4 执行细节：画幅选项 / 场景模式表 / 拆解示例 / 技术决策表 / 空间预检 / 精修 | **必读全部** |
 | STEP 4 生成前必读 | `references/code-templates.md` | 防御性骨架 / 玻璃容器渲染管线 / 四大程序化模型 A-D / FSM 代码 / 交互模板 / 调色板预设 / 质量清单 | **必读：§防御性骨架 + （若含玻璃容器 → §玻璃容器渲染）+ 场景匹配的程序化模型 + §质检清单。其余翻阅** |
 | 场景含玻璃容器时 STEP 2-4 必读 | `references/code-templates.md §玻璃容器渲染` | Canvas-Only 玻璃渲染管线：贝塞尔瓶身路径 / clip 遮罩 / 菲涅尔边缘 / 曲面条带高光 / 瓶口反射环 / 3D 软木塞 / 铁律 | **必读全部**（触发条件：场景含玻璃瓶/水族箱/玻璃罩/漂流瓶/封闭容器。不触发：开放风景/纯室内无玻璃） |
+| STEP 2-4 像素渲染时必读 | `references/pixel-grid-system.md` | 五维像素完整性规范：PX 网格约束 / Saint11 6条着色法则 / Bayer 抖动标准 / 像素物理运动 / 7条反模式质检 | **必读 §I-II；其余按需翻阅**（触发条件：所有含像素元素的场景。不触发：纯矢量/CSS场景） |
 | 场景为开放风景时 STEP 2-4 必读 | `references/landscape-composition.md` | 纵深骨架公式（7层）/ 爆款三要素验证表 / 大气透视色差公式 / 元素放置交叉验证 | **必读全部**（触发条件：STEP 1 场景模式判定为"开放场景" 且 用户描述含自然地形+天空+远景。不触发：封闭容器/纯室内/纯水下） |
 | 场景为像素森林/花园时 STEP 2-4 必读 | `references/vegetation-system.md` | 像素物种表（针叶/阔叶/灌木 3 例）/ 队列迭代分支生长 / 分层子节点 / 树冠生成 / 三级像素风 / 林地生成 / 9 条反模式 | **必读全部**（触发条件：STEP 1 场景模式判定为"像素森林"或"像素花园" 且 用户描述含树木/灌木/花草。不触发：赛博宠物/像素养鱼/无植被场景） |
 | 场景含水/海/湖/池塘/水族箱水面时 STEP 2-4 必读 | `references/ocean-pixels.md` | 像素波浪线（多正弦叠加+choppiness）/ 像素泡沫（波峰曲率检测）/ 水面渐变 / 像素涟漪交互 / 河流模式（Y轴遍历+pow(t,2)透视）/ 概念种子偏置 / 反模式 | **必读全部**（触发条件：场景含水面元素——海/浪/湖/池塘/水族箱水面/海滩/涟漪。不触发：无水面场景） |
 | 确认含音效后按需读 | `references/audio-engine.md` | Web Audio 合成配方（零音频文件）— §一~§六 + 情绪→音色速查 | **翻阅** |
 | 音效需求复杂时按需读 | `references/audio-advanced.md` | 高级配方：和弦垫 / 节拍器 / 五声音阶 / AudioWorklet / 空间混响 | **翻阅** — 按需查配方 |
 | 需要可复现/可探索时按需读 | `references/seeded-exploration.md` | Seeded randomness / Seed 导航面板 / 参数 slider 面板 / 可分享 URL | **翻阅** — 查模式 |
-| STEP 2 选色时查阅 | `assets/palettes.json` | 6 套 Frutiger Aero 命名色板 + 基底渐变 + 使用规则 | **翻阅** — 选色板 |
+| STEP 2 选色时查阅 | `assets/palettes.json` | 6 套 Frutiger Aero 命名色板 + 5 套控制台调色板 + 2 套 Lospec 16 色受限调色板 + 基底渐变 + 使用规则 | **翻阅** — 选色板 |
 
-## 五大硬性铁律（全场景宪法 — 生成前必读）
+## 六大硬性铁律（全场景宪法 — 生成前必读）
 
-> 详细规范见 `references/design-principles.md §二十`。以下为摘要——违反任一条 = 生成失败。
+> 详细规范见 `references/design-principles.md §一` 和 `§二`。以下为摘要——违反任一条 = 生成失败。
 
 | # | 铁律 | 一句话 |
 |---|------|--------|
@@ -49,6 +49,7 @@ description: >
 | 3 | **概念动词履约** | Prompt 中的每个动词（展开/漂浮/玻璃）必须有对应的技术实现（lerp/FSM/clip） |
 | 4 | **Frutiger Aero 物理规格** | 禁暗沉毛玻璃/纯黑阴影/扁平色块/高饱和原色；必须含条带高光+通透渐变+菲涅尔描边+气泡 |
 | 5 | **确定性渲染** | `random()` 禁用于 `draw()` 中的静态/半静态元素——预生成数组 + `sin(t)` 位移 |
+| 6 | **像素完整性** | 禁 mixel/非90°旋转/CSS blur覆盖像素；`noSmooth()`+`imageSmoothingEnabled`+`image-rendering` 三保险；渐变必须用 Bayer 抖动 |
 
 ## 不变项 vs 可变项
 
@@ -58,9 +59,7 @@ description: >
 
 | 不变项 | 规则 |
 |--------|------|
-| 五大铁律 | 上述 5 条全部强制执行 |
-| 像素美学 | 纯像素渲染，禁用抗锯齿/模糊/矢量混合 |
-| Frutiger Aero 调色 | 毛玻璃 + 发光 + 柔和渐变，禁用暗黑/高饱和原色 |
+| 六大铁律 | 上述 6 条全部强制执行 |
 | FSM 生命体上限 | ≤ 10 |
 | Perlin 粒子上限 | ≤ 120 |
 | 防御性骨架 | 从 `code-templates.md` 模板出发，不凭空写 |
@@ -83,7 +82,7 @@ description: >
 | 描述模糊（"做个好玩的"） | 反问：场景类型 / 空间形态 / 核心交互 |
 | 生命体 > 10 个 | 告知上限，提议分批分文件生成 |
 | 完整游戏 / 多页 / 非像素风 / Three.js | 说明边界后拒绝 |
-| 含"沉浸 / 冥想 / 光浴 / 漂浮 / 光场" | 进入 **Ganzfeld 模式**（严守 design-principles.md §十一，禁止深色/惊吓/宗教色相漂移） |
+| 含"沉浸 / 冥想 / 光浴 / 漂浮 / 光场" | 进入 **Ganzfeld 模式**（严守 design-principles.md §廿一，禁止深色/惊吓/宗教色相漂移） |
 ---
 
 ## 生成流程
@@ -96,17 +95,14 @@ description: >
 |------|------|---------|--------------|
 | 赛博宠物 | "养一个电子宠物" | "它会一直在"——无条件的陪伴 | "Always Here" |
 | 像素盆栽 | "种一棵像素植物" | "你不在的时候它也在生长"——生命不需要观众 | "Still Growth" |
+| 像素花园 | "一片像素花园" | "这个世界有一个角落只为你存在"——秘密庇护所 | "Secret Haven" |
 | 像素养鱼 | "养一缸像素鱼" | "它们不在乎你有没有在看"——另一个世界的平行存在 | "Another Tank" |
-| 像素森林 | "一片像素树林" | "每棵树都有自己的节奏"——慢下来不是落后 | — |
+| 像素森林 | "一片像素树林" | "每棵树都有自己的节奏"——慢下来不是落后 | "Slow Woods" |
 | 像素风景 | "一片山谷/草原/田园" | "这个世界是完整的、未被破坏的——你可以走进去" | "Windmill Valley" |
 
 **命名是这个像素世界送给用户的一句话，锚定情绪温度和交互姿态——后续所有决策以此为北极星。**
 
 ---
-
-### STEP 0 — 视觉调研（新场景必做）
-
-> 执行细节 → `references/generation-workflow.md §STEP0`
 
 ### STEP 1 — 画幅、音效与场景模式
 
@@ -114,7 +110,7 @@ description: >
 
 ### STEP 2 — 像素拆解 + 概念动词履约检查
 
-> 拆解示例 + 规则 → `references/generation-workflow.md §STEP2`
+> 新场景先做视觉调研（搜索参考图提取色彩/形状/光影特征，工具不可用则从用户描述推断），然后拆解。拆解示例 + 规则 → `references/generation-workflow.md §STEP2`
 
 拆解完成前，**先做概念动词履约检查**（铁律 3）：从用户 Prompt 中提取所有动词和意象词，对照下表确认每个词都有对应的技术实现方案。**缺失任一项 = 拆解不完整，回退重做。**
 
@@ -126,66 +122,37 @@ description: >
 | 水/液体/波浪 | ≥2 频率正弦叠加 + 深度渐变 | 搜索 `sin(` 至少 2 处不同频率 |
 | 气泡/水珠 | `circle()` + Crescent 高光 + Perlin 上升 | 搜索 `circle(` |
 | 生命/生物/宠物 | FSM ≥ 3 态 + 呼吸微动 | 搜索 `STATE.` 或状态枚举 |
-| 光/发光/光场 | `screen`/`lighter` + 双圈径向渐变 | 搜索 `globalCompositeOperation` |
+| 光/发光/光场 | 姿势 A（lighter+径向渐变）/ 姿势 B（离屏Bloom）/ 姿势 C（Bayer抖动光晕） | 搜索 `globalCompositeOperation` |
+
+若 Prompt 不含任何上表动词 → 根据场景类型从表中推荐 2-3 个动词（如"像素森林"→ 推荐：漂浮/生命/光），让用户确认后再拆解。不跳步，不替用户做决定。
 
 ### STEP 3 — 技术决策（4 项，逐一明确后才写代码。音效方案在 STEP 1 已确定）
 
 > 决策表 → `references/generation-workflow.md §STEP3`
 
-决策完成后，逐项对照 `design-principles.md §十六` 偏置方向表自检——色温方向、运动速度、交互响应模式、粒子密度、音效方向是否与概念种子偏置一致。若任一参数在偏置方向上反向 → 回退重选（概念种子形同虚设）。
+决策完成后，逐项对照 `design-principles.md §十七` 偏置方向表自检——色温方向、运动速度、交互响应模式、粒子密度、音效方向是否与概念种子偏置一致。若任一参数在偏置方向上反向 → 回退重选（概念种子形同虚设）。
 
 ### STEP 4 — 生成
 
-读 `references/code-templates.md`（防御性骨架 + META 注释头模板 + 程序化模型代码 + 质量清单）后生成。
+读 `references/code-templates.md` 后生成。**写代码前先完成空间预检（4 数字确认）→ `generation-workflow.md §STEP4`。**
 
-**生成前空间预检（强制 — 代码还没写，先确认 4 个数字）：**
+### STEP 4.1 — 精修
 
-在写任何 HTML/CSS 之前，必须明确以下 4 个数值，并确认它们一致：
+> 精修原则 + 3 必查 → `generation-workflow.md §STEP4.1`
 
-```
-1. 画布像素尺寸：  CW = ___ px,  CH = ___ px
-2. 容器显示尺寸：  wrapper = CW × scale, CH × scale（scale = min(viewportW/CW, viewportH/CH)）
-3. 玻璃层最大尺寸： top ___% + bottom ___% ≤ 100% → 玻璃层在 wrapper 内
-4. ::after 溢出量：  top ___% + height ___% ≤ 100% → 菲涅尔高光不超出 wrapper（overflow:hidden 兜底）
-```
+### STEP 5.1 — 对抗式检查（强制执行）
 
-**如果第 3/4 项的 % 之和 > 100%，玻璃层或高光会超出容器边界。** 溢出部分在无 `overflow:hidden` 时会覆盖相邻层。参考值：
-- `.glass-bg` / `.glass-shell`: `top:3%; left:3%; right:3%; bottom:3%`（合计 6% 边距，92% 覆盖）
-- `.glass-shell::after`: `top:-5%; height:35%`（向上溢出 5%，总高 35%，下方 65% 透明 → 安全）
+> 执行细节 → `design-principles.md §十五`。致命项全修完才进 STEP 5.2。
 
-### STEP 4.1 — 精修（在质检之前）
+### STEP 5.2 — 像素视觉验证（强制执行）
 
-初稿完成。**不要添加任何新东西。** 回到已有代码里做三件事：**删减、微调参数、加强已存在元素之间的呼应。** 若改动需加新实体——跳过。
-
-精修必查项（在调运动曲线和毛玻璃高光之前，先确认这 3 个空间维度）：
-
-1. **坐标系统一**：搜索 `position:\s*fixed` —— 除了 `#pixel-stage` 自身，还有没有其他元素使用？如有 → 改为 `position: absolute`
-2. **单位统一**：搜索 `vw` 或 `vh` —— 是否出现在 `.glass-bg` / `.glass-shell` / `.ambient-light` / `#interact-layer` 中？如有 → 改为 `%`
-3. **blur 层级**：搜索 `backdrop-filter` —— 确认只在 `.glass-bg`（z=2, canvas 之下）出现，不在 `.glass-shell`（z=4）或任何 z≥3 的元素
-
-三项全部确认后，再开始调运动曲线、高光透明度、交互反馈节奏。
-
-### STEP 5.1 — 对抗式检查（强制执行 · 全场景通用）
-
-> 执行细节 → `references/design-principles.md §十四`
-
-必须用脚本跑结构性检查。人脑无法同时追踪所有元素的 scale × 地形参数 × 水体边界 × API 兼容性 × **各层尺寸/坐标系统一致性**。检查脚本至少覆盖：JS 语法、API 兼容性（hex+string α）、**空间一致性（wrapper 存在 + 坐标系统一 + blur 层级）**、缩放可见性（< 15px 告警）、元素坐标冲突。**致命项全修完才进 STEP 5.2。**
-
-### STEP 5.2 — 像素视觉验证（强制执行 · 全场景通用）
-
-> 执行细节 → `references/design-principles.md §14.5`
-
-对抗式检查验证了"代码结构安全"，但**不能验证运行时视觉正确**。脚本 WARN 项（scale<15px、色差<30）不是"可以忽略"——必须逐项目测确认。
-
-**先做检查 0（空间一致性，代码级，AI 可直接验证）→ 再做检查 1-4（目测）。** 如果坐标系统不统一，后续目测结果无意义。
-
-5 项强制验证：**空间一致性（5 层是否共用同一坐标系统）** → 像素可见性（每个 WARN 项目测）→ 颜色对比度（每对相邻层 ΔRGB > 30）→ viewport 响应（3 个视口下画布完整/FPS≥50/z-index 正确）→ 运动稳定性（30 秒模拟 FSM 不卡/粒子不耗尽/帧率不退化）。**全部 5 项 ✅ 才进 STEP 5.3。**
+> 执行细节 → `design-principles.md §十五 → 像素视觉验证`。全部 5 项 ✅ 才进 STEP 5.3。
 
 ### STEP 5.3 — 质检
 
 ```bash
 mkdir -p ~/Documents/h5
-python3 scripts/validate.py <文件.html>   # 内含 JS 语法检查，全绿才继续
+cd ~/projects/my-skills/pixel-bloom && python3 scripts/validate.py ~/Documents/h5/<文件.html>   # 内含 JS 语法检查，全绿才继续
 ```
 
 若报错，逐条修复后重跑，**全绿才进入 STEP 5.4**。
@@ -203,6 +170,8 @@ python3 scripts/validate.py <文件.html>   # 内含 JS 语法检查，全绿才
 4. **有没有任何东西让你觉得"这是 AI 做的"？** — 均匀散布、机械抖动、颜色刺眼？
 
 如果第 0 题答案是"是"——回到 STEP 4 修复布局。如果第 1 题答案与概念种子不符——回到概念种子，检查颜色/运动/交互是否偏离了命名。如果第 2 题没有答案——交互入口不明显。如果第 3 题答案是"在等然后呢"——运动缺乏变化或缺少意外行为，增加 Perlin 探索范围或 FSM 状态切换频率。如果第 4 题有答案——回到 STEP 4 调整。
+
+> 开放风景场景额外用爆款三要素验证 → `landscape-composition.md §二`（可进入的纵深 / 尺度参照物 / 活的细节）。
 
 ### STEP 6 — 实测交付
 

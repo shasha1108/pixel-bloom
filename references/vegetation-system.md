@@ -343,7 +343,7 @@ function generateCanopy(tree, sp, px, rng) {
 
 ## 五、三级像素风
 
-> **全场景风元素统一数据源**：本节的全局 `WIND` 对象和 `windIntensity()` 是 pixel-bloom 中所有风驱动元素（树/水面波纹/花粉粒子/蝴蝶）的统一采样源。非树木元素从同一个 `WIND` 对象读取 `strength`/`speed`/`angle`，确保"同一阵风"的一致性——详见 `design-principles.md §十七`。
+> **全场景风元素统一数据源**：本节的全局 `WIND` 对象和 `windIntensity()` 是 pixel-bloom 中所有风驱动元素（树/水面波纹/花粉粒子/蝴蝶）的统一采样源。非树木元素从同一个 `WIND` 对象读取 `strength`/`speed`/`angle`，确保"同一阵风"的一致性——详见 `design-principles.md §十八`。
 
 **风不是一棵树的属性——是三种不同尺度的像素偏移，分别作用于叶、枝、干。**
 
@@ -561,8 +561,9 @@ function applyWind(tree, canopyPixels, time, px) {
 }
 ```
 
-**与概念种子偏置的集成**（`design-principles.md §十六`）：
+**与概念种子偏置的集成**（`design-principles.md §十七`）：
 - "每棵树有自己的节奏"（慢下来不是落后）→ `WIND.strength = 0.15`, `WIND.speed = 1.2`
+- "这个世界有一个角落只为你存在"（秘密庇护所）→ `WIND.strength = 0.22`, `WIND.speed = 1.5`, `WIND.turbulence = 0.2`（微风摇曳，不猛烈）
 - "被遗忘的花园在呼吸"（神秘/宁静）→ `WIND.turbulence = 0.15`, `WIND.flutter = 0.1`
 - "暴风雨后的平静"（治愈/释放）→ Act 2 `WIND.strength = 0.6` → Act 3 `WIND.strength = 0.1`
 

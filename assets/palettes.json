@@ -40,5 +40,77 @@
       "best_for": "赛博宠物、科技感像素生命"
     }
   ],
+  "console_palettes": {
+    "description": "Mid-2000s handheld & desktop UI palette collection. Designed for dithering (limited color count forces creative blending). Use with Bayer ordered dithering for gradient effects. Trigger: user requests retro game UI / pixel badge / console-style menu.",
+    "palettes": [
+      {
+        "name": "PSP XMB Wave (Default)",
+        "personality": "Sony PSP cross media bar — dark background with vibrant wave gradient",
+        "colors": ["#1A1A2E", "#00BFFF", "#7FFF00", "#FF8C00", "#FFFFFF"],
+        "best_for": "像素波浪背景、暗色主题UI、光粒子系统"
+      },
+      {
+        "name": "PSP XMB Months",
+        "personality": "PSP XMB 12 monthly theme colors — pastel seasonal palette rotation",
+        "colors": ["#D8D8D8", "#F0E8A0", "#B8D8A0", "#F0C0C0", "#A0D8B0", "#A0C8F0", "#A0B8F0", "#A0C8A0", "#F0C898", "#D8B898", "#C8C0B8", "#B0C8E8"],
+        "best_for": "季节性像素场景、月替主题色、日历UI"
+      },
+      {
+        "name": "Web 2.0 Glossy Badge",
+        "personality": "2005-2008 forum signature 88×31 badge — candy gel colors with white shine arc",
+        "colors": ["#F8F8F8", "#0099FF", "#66CC00", "#FF9900", "#B0B0B0"],
+        "best_for": "像素徽章/按钮、Web 2.0风格UI、光泽弧线高光"
+      },
+      {
+        "name": "Nintendo DS Menu",
+        "personality": "NDS/DSi system menu — white-gray-teal scheme with blue accent",
+        "colors": ["#FFFFFF", "#D0D0D0", "#A0A0A0", "#50B8B0", "#2878D0"],
+        "best_for": "掌机风格像素菜单、DS复古UI"
+      },
+      {
+        "name": "Wii Menu Channels",
+        "personality": "Wii system menu — white rounded channel cards with primary color accents",
+        "colors": ["#F8F8F8", "#4AA0F0", "#50D050", "#F04040", "#C8C8C8"],
+        "best_for": "像素频道卡片、圆角按钮、Wii风格UI"
+      }
+    ],
+    "usage": "控制台调色板是受限色空间——每个调色板仅4-12色。抖动（Bayer有序抖动）是核心手法，用于在受限颜色之间创造过渡色。不要用 createLinearGradient() 混合控制台调色板色——用抖动。"
+  },
+  "lospec_palettes": {
+    "description": "Lospec 风格的 16 色受限调色板 — 专为 Frutiger Aero × 像素风 Bayer 抖动设计。每条色带是 4 级亮度渐变，4 条色带 × 4 级 = 16 色。使用方式：同级亮度跨色带混合 + 不同亮度级垂直过渡 + Bayer 抖动模拟中间色。来源参考：Lospec Palette List (lospec.com)、Saint11 AAP-64、PICO-8 16 色体系。",
+    "palettes": [
+      {
+        "name": "Aero Aqua 16",
+        "personality": "Frutiger Aero 玻璃/水体/天空 — 从冰白透蓝到深海墨绿",
+        "size": 16,
+        "layout": "4 条色带 × 4 级亮度",
+        "color_bands": {
+          "glass_white":   ["#ffffff", "#e8f8ff", "#d0f0ff", "#a0e8f8"],
+          "sky_aqua":      ["#a0f0ff", "#70d8f0", "#40b8e0", "#1098c0"],
+          "water_cyan":    ["#70d0f0", "#40b0d0", "#2090b0", "#1070a0"],
+          "deep_teal":     ["#3090b0", "#207080", "#105060", "#083040"]
+        },
+        "colors_flat": ["#ffffff","#e8f8ff","#d0f0ff","#a0e8f8","#a0f0ff","#70d8f0","#40b8e0","#1098c0","#70d0f0","#40b0d0","#2090b0","#1070a0","#3090b0","#207080","#105060","#083040"],
+        "best_for": "像素水族箱、水下场景、玻璃容器、天空渐变 — 配合 Bayer 4×4 抖动模拟连续水色过渡"
+      },
+      {
+        "name": "Aero Meadow 16",
+        "personality": "Frutiger Aero 草甸/阳光/植物 — 从奶油暖阳到深叶绿",
+        "size": 16,
+        "layout": "4 条色带 × 4 级亮度",
+        "color_bands": {
+          "sun_cream":     ["#fcf8e8", "#f8f0d0", "#f0e8b0", "#e8d870"],
+          "leaf_light":    ["#e0f0c8", "#c8e8a0", "#a8d878", "#80e040"],
+          "grass_mid":     ["#b8d880", "#90c060", "#70a840", "#509028"],
+          "shadow_green":  ["#80b050", "#609038", "#407020", "#285018"]
+        },
+        "colors_flat": ["#fcf8e8","#f8f0d0","#f0e8b0","#e8d870","#e0f0c8","#c8e8a0","#a8d878","#80e040","#b8d880","#90c060","#70a840","#509028","#80b050","#609038","#407020","#285018"],
+        "best_for": "像素花园、像素森林、草地场景、阳光透过叶片的碎金光斑"
+      }
+    ],
+    "usage": "Lospec 16 色调色板是**受限色空间**。16 色无法直接画出光滑渐变 → 必须使用 Bayer 有序抖动（code-templates.md §像素实体系统）在色带之间创造过渡。一条色带内的 4 级亮度 = 同一色相的明暗变化。跨色带 = 色相偏移（白→青→蓝→墨绿）。组合使用：同级亮度跨色带混合 + 不同亮度级做垂直深度渐变。",
+    "dither_example": "水体深度渐变: orderedDither(x, y, depthT, AeroAqua[8], AeroAqua[11]) → 青色与深海蓝之间用 4×4 Bayer 矩阵做像素级抖动过渡"
+  },
+  "dithering_note": "控制台调色板和 Frutiger Aero 调色板均可与 Bayer 有序抖动（见 code-templates.md §像素实体系统）配合使用。玻璃高光/轮廓/文字永不抖动。抖动用于背景/地形/渐变过渡。",
   "usage": "选择一个色板 → colors[0]用作主体、colors[1]用作高光、colors[2-3]用作背景过渡。永不 random RGB——始终从 palettes 数组中索引。"
 }

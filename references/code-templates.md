@@ -23,9 +23,7 @@
 
 ### 架构铁律：Wrapper 统一坐标系统
 
-**旧反模式**：每个层各自 `position: fixed` + 视口单位（vw/vh），canvas 用 JS 独立定位。各层尺寸不同、坐标系统不同 → 固定画布 640×960 被 90vw×88vh 的玻璃壳 `::after` 白色渐变彻底盖死。
-
-**新铁律**：所有视觉层（光斑 → 玻璃底板 → canvas → 玻璃外壳 → 交互层）必须在同一个容器 `#pixel-stage` 内，使用 `position: absolute` + 百分比单位。容器尺寸 = 画布显示尺寸，由 JS 统一计算。**任何 layer 不得单独使用 `position: fixed`。**
+所有视觉层（光斑 → 玻璃底板 → canvas → 玻璃外壳 → 交互层）必须在同一个容器 `#pixel-stage` 内，使用 `position: absolute` + 百分比单位。容器尺寸 = 画布显示尺寸，由 JS 统一计算。**任何 layer 不得单独使用 `position: fixed`。**
 
 ```
 #pixel-stage (position:fixed, 居中于视口, overflow:hidden)
@@ -588,6 +586,8 @@ function draw() {
 
 ### 调色板参考：Frutiger Aero 玻璃色
 
+> Aero 通用色权威值见 `design-principles.md §一`。本表为玻璃容器专属色。
+
 | 用途 | 色值 | 说明 |
 |------|------|------|
 | 瓶后透光中心 | `rgba(210,245,255,0.12)` | 冰蓝 — 极淡，模拟薄玻璃中心透光 |
@@ -818,7 +818,7 @@ document.getElementById('interact-layer').addEventListener('pointerdown', (e) =>
 
 **🔴 架构（致命 — 不通过则页面必然异常）：**
 
-**五大铁律自检（`design-principles.md §二十` — 生成后强制执行）：**
+**五大铁律自检（`design-principles.md §一` — 生成后强制执行）：**
 - [ ] **铁律 1**：搜索 `backdrop-filter` → 仅出现在 `.glass-bg`（z=2）？z≥3 的元素禁止
 - [ ] **铁律 2**：若场景含玻璃容器 → `ctx.clip()` 存在？`globalCompositeOperation = 'screen'` 在高光中出现？
 - [ ] **铁律 3**：逐条对照 Prompt 动词与履约表 → 每个动词都有对应的技术实现？
@@ -861,3 +861,581 @@ document.getElementById('interact-layer').addEventListener('pointerdown', (e) =>
 - [ ] 文字带发光白边（`text-shadow:0 1px 2px rgba(255,255,255,.8)`）
 - [ ] 无纯黑字体（统一深海蓝 `#1a4a5e` 或半透明白 `rgba(255,255,255,.85)`）
 - [ ] 操作提示：底部一行 12px / letter-spacing 3px / 半透明，不抢主视觉
+
+---
+
+## 像素实体系统（Pixel Entity System）
+
+> 以下工具函数实现 `pixel-grid-system.md` 定义的像素完整性约束。生成任何含像素元素的场景时，优先从本节复制代码。
+
+### 1. 全局像素常量
+
+```javascript
+const PX = 2; // 基准像素单位。小画布(<400px宽)用3，大画布(>1200px)用4
+```
+
+### 2. 整数吸附工具
+
+```javascript
+/**
+ * 像素网格吸附 — 仅在 draw() 渲染时调用，物理计算保持浮点精度。
+ * 与 §防坑铁律 1 的 translate(round()) 模式一致。
+ */
+function snap(v) {
+  return Math.round(v / PX) * PX;
+}
+
+function snapVec(x, y) {
+  return { x: snap(x), y: snap(y) };
+}
+
+// 用法：
+// let p = snapVec(entity.x, entity.y);
+// translate(p.x, p.y);
+```
+
+### 3. Bayer 有序抖动矩阵
+
+> 权威定义见 `pixel-grid-system.md §III`。以下为本地副本——始终与 pixel-grid-system.md 保持同步。
+
+```javascript
+// 2×2 Bayer 矩阵 — 最小矩阵，适合低分辨率像素画。归一化: 除以4
+const BAYER_2X2 = [
+  [0, 2],
+  [3, 1]
+];
+
+// 4×4 Bayer 矩阵 — 推荐默认。归一化: 除以16
+const BAYER_4X4 = [
+  [ 0,  8,  2, 10],
+  [12,  4, 14,  6],
+  [ 3, 11,  1,  9],
+  [15,  7, 13,  5]
+];
+
+// 8×8 Bayer 矩阵 — 高精度场景。归一化: 除以64
+const BAYER_8X8 = [
+  [ 0, 32,  8, 40,  2, 34, 10, 42],
+  [48, 16, 56, 24, 50, 18, 58, 26],
+  [12, 44,  4, 36, 14, 46,  6, 38],
+  [60, 28, 52, 20, 62, 30, 54, 22],
+  [ 3, 35, 11, 43,  1, 33,  9, 41],
+  [51, 19, 59, 27, 49, 17, 57, 25],
+  [15, 47,  7, 39, 13, 45,  5, 37],
+  [63, 31, 55, 23, 61, 29, 53, 21]
+];
+```
+
+### 4. 有序抖动函数（O(1)，draw() 中实时可用）
+
+```javascript
+/**
+ * 两色之间用 Bayer 矩阵做像素抖动选择。
+ * @param {number} x, y — 像素坐标（整数值，非 PX 单位）
+ * @param {number} t — 混合因子 [0,1]。0=全 colorA，1=全 colorB
+ * @param {string} colorA — hex 颜色 '#70d0f0'
+ * @param {string} colorB — hex 颜色 '#1070a0'
+ * @param {number[][]} matrix — Bayer 矩阵，默认 BAYER_4X4
+ * @returns {string} 选中的 hex 颜色
+ */
+function orderedDither(x, y, t, colorA, colorB, matrix = BAYER_4X4) {
+  const N = matrix.length;
+  const threshold = matrix[y % N][x % N] / (N * N);
+  return threshold < t ? colorA : colorB;
+}
+
+// 用法示例 — 像素地形深度渐变（draw() 每帧调用）：
+// for (let by = 0; by < gridH; by++) {
+//   for (let bx = 0; bx < gridW; bx++) {
+//     let depthT = by / gridH;  // 0=浅水，1=深水
+//     fill(orderedDither(bx, by, depthT, '#70d0f0', '#1070a0'));
+//     rect(bx * PX, by * PX, PX, PX);
+//   }
+// }
+```
+
+### 5. Floyd-Steinberg 误差扩散（参考实现 — setup() 一次性使用）
+
+> **⚠️ 性能警告**：O(W×H)，仅用于 `setup()` 中预计算静态背景。禁止在 `draw()` 中每帧执行。
+
+```javascript
+/**
+ * Floyd-Steinberg 误差扩散 — 将灰度缓冲区抖动到有限调色板。
+ * @param {number[][]} grayBuffer — W×H 的灰度值数组 [0, 255]
+ * @param {string[]} palette — hex 颜色数组，按亮度升序排列
+ * @returns {string[][]} — W×H 的颜色结果数组
+ *
+ * 核权重（已验证）：
+ *    [*] [→ 7/16]
+ *    [↓ 3/16] [↘ 5/16] [↘ 1/16]
+ */
+function floydSteinbergDither(grayBuffer, palette) {
+  const H = grayBuffer.length;
+  const W = grayBuffer[0].length;
+  // 复制为浮点缓冲区（支持误差叠加）
+  const buf = grayBuffer.map(row => row.map(v => v));
+  const result = Array.from({ length: H }, () => new Array(W));
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const oldVal = constrain(buf[y][x], 0, 255);
+      // 找最近调色板色
+      const ci = round(map(oldVal, 0, 255, 0, palette.length - 1));
+      const newVal = map(ci, 0, palette.length - 1, 0, 255);
+      result[y][x] = palette[ci];
+      const error = oldVal - newVal;
+
+      // 扩散误差到 4 个邻居
+      if (x + 1 < W)        buf[y][x + 1]     += error * 7 / 16;
+      if (x - 1 >= 0 && y + 1 < H) buf[y + 1][x - 1] += error * 3 / 16;
+      if (y + 1 < H)        buf[y + 1][x]     += error * 5 / 16;
+      if (x + 1 < W && y + 1 < H) buf[y + 1][x + 1] += error * 1 / 16;
+    }
+  }
+  return result;
+}
+```
+
+### 6. 像素字体渲染
+
+#### 完整 CSS @font-face 字体链
+
+```css
+/* ══ 放入 <style> 块 — 像素字体完整加载链 ══ */
+
+/* 首选：方舟像素体 — 中文/日文/英文，12px 为主要尺寸 */
+@font-face {
+  font-family: 'Ark Pixel';
+  src: url('https://raw.githubusercontent.com/TakWolf/ark-pixel-font/main/fonts/woff2/ark-pixel-12px-proportional-zh_cn.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* 备选 1：ZPix — 最契合 Frutiger Aero 气质的中文像素体 */
+@font-face {
+  font-family: 'ZPix';
+  src: local('ZPix'), url('zpix.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* 备选 2：Pixel Operator — 英文/数字，复古 Vista/Win98 风格 */
+@font-face {
+  font-family: 'Pixel Operator';
+  src: local('Pixel Operator'), url('pixel-operator.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* 终极 fallback：Unifont — 全球全语言全覆盖点阵字 */
+@font-face {
+  font-family: 'Unifont';
+  src: local('Unifont'), url('unifont.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* ── 像素文字防虚化 ── */
+.pixel-text {
+  font-family: 'Ark Pixel', 'ZPix', 'Pixel Operator', 'Unifont', monospace;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+  image-rendering: pixelated;
+}
+```
+
+#### 字体尺寸约束表
+
+| 字体 | 基准尺寸 | 允许的渲染尺寸 | 不允许 |
+|------|---------|--------------|--------|
+| **Ark Pixel** | 12px | 12, 24, 36, 48 | 13, 14, 25, 37 |
+| **ZPix** | 12px | 12, 24, 36 | 13, 14, 25 |
+| **Fusion Pixel** | 8/10/12px | 8, 10, 12, 16, 20, 24 | 9, 11, 13, 15 |
+| **Pixel Operator** | 8px | 8, 16, 24, 32 | 9, 10, 17 |
+| **Unifont** | 16px | 16, 32 | 17, 18, 24 |
+
+> **铁律**：像素字体必须在基准尺寸的整数倍下渲染。非整数倍尺寸 = 浏览器插值缩放 = 字体虚化 = 像素美学崩溃。
+
+#### Canvas 像素文本渲染函数
+
+```javascript
+/**
+ * Canvas 像素文本渲染。
+ * ⚠️ imageSmoothingEnabled 不影响 fillText() 抗锯齿 —
+ *    真正消除虚化依赖像素字体本身（字形 = 像素化）。
+ * @param {CanvasRenderingContext2D} ctx — drawingContext
+ * @param {string} text — 文本内容
+ * @param {number} x, y — 像素坐标（自动 snap）
+ * @param {number} fontSize — 必须是字体基准尺寸的整数倍（见上表）
+ * @param {string} color — hex 颜色
+ * @param {string} fontFamily — 字体名，默认 'Ark Pixel'
+ */
+function drawPixelText(ctx, text, x, y, fontSize, color, fontFamily = "'Ark Pixel', 'ZPix', monospace") {
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, snap(x), snap(y));
+  ctx.restore();
+}
+```
+
+### 7. 像素实体模式
+
+```javascript
+/**
+ * 标准像素实体：浮点物理 + 整数渲染。
+ * 替代方案：直接使用 §防坑铁律 1 的 translate(round()) 模式，不强制使用类。
+ *
+ * 所有在 draw() 中移动的对象都应遵循此模式：
+ *   setup() 初始化 → 浮点 x, y, vx, vy
+ *   draw() 更新物理 → translate(round(x), round(y)) 渲染
+ */
+function createPixelEntity(x, y, vx = 0, vy = 0) {
+  return {
+    x: x, y: y,         // 浮点 — 物理位置
+    vx: vx, vy: vy,     // 浮点 — 速度
+    rx: snap(x),        // 整数 — 渲染位置（每帧更新）
+    ry: snap(y),
+
+    update(dt = 1) {
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.rx = snap(this.x);
+      this.ry = snap(this.y);
+    },
+
+    render() {
+      push();
+      translate(this.rx, this.ry);
+      // 在此绘制对象（坐标相对于实体中心）
+      pop();
+    }
+  };
+}
+```
+
+---
+
+## Bloom / Glow 光效姿势库
+
+> 完整理论 + 决策树 + 权威文献见 `pixel-grid-system.md §VII`。
+
+### 姿势 A：指数衰减径向渐变加色法（2D 对象级标准）
+
+```javascript
+/**
+ * 姿势 A：基于指数衰减与加色混合的单体光晕。
+ * 适用：萤火虫、发光粒子、气泡发光、魔法粒子、太阳耀斑。
+ *
+ * 物理模型：I = I₀ · e^(-k · r)
+ * 混合模式：globalCompositeOperation = 'lighter'（加色——光能叠加）
+ *
+ * @param {CanvasRenderingContext2D} ctx — drawingContext
+ * @param {number} x, y — 光源中心坐标
+ * @param {number} innerRadius — 核心光半径（最亮区域）
+ * @param {number} outerRadius — 光晕外半径（亮度衰减到 0 的距离）
+ * @param {string} colorRGB — RGB 颜色分量，如 '255, 200, 150'
+ */
+function drawObjectGlow(ctx, x, y, innerRadius, outerRadius, colorRGB) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter'; // ★ 加色混合 — 光能叠加
+
+  const g = ctx.createRadialGradient(x, y, innerRadius, x, y, outerRadius);
+  // 指数衰减 Alpha 曲线（I = I₀ · e^(-k · r) 的离散采样）
+  g.addColorStop(0,   `rgba(${colorRGB}, 1.0)`);   // 中心：最强
+  g.addColorStop(0.2, `rgba(${colorRGB}, 0.6)`);   // 近场：快速衰减
+  g.addColorStop(0.5, `rgba(${colorRGB}, 0.2)`);   // 中场
+  g.addColorStop(0.8, `rgba(${colorRGB}, 0.05)`);  // 远场：极弱
+  g.addColorStop(1,   `rgba(${colorRGB}, 0.0)`);   // 边界：消失
+
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, outerRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// 用法：
+// drawObjectGlow(drawingContext, b.x, b.y, 2, 14, '255, 255, 255');
+```
+
+**关键**：`'lighter'` 而非 `'screen'`。
+- `'lighter'` = 像素值直接相加（光能叠加，物理正确）
+- `'screen'` = 反转-乘-反转（比 lighter 暗，用于高光/反射叠加）
+
+### 姿势 B：离屏下采样 Blur 叠加 Bloom 管线（全屏级）
+
+```javascript
+/**
+ * 姿势 B：Canvas 2D 离屏下采样 Bloom 后处理管线。
+ * 适用：场景中有多个发光体，希望光线融合漫延到暗部。
+ *
+ * 管线：下采样 → 模糊低分辨率画布 → lighter 叠加回主画布
+ * 性能：模糊 1/4 画布 ≈ 模糊原画 4% 的像素数
+ *
+ * @param {number} mainW, mainH — 主画布宽高
+ * @param {number} scale — 下采样比例，默认 0.25（1/4）
+ */
+class CanvasBloomPipeline {
+  constructor(mainW, mainH, scale = 0.25) {
+    this.offscreen = document.createElement('canvas');
+    this.offscreen.width = Math.floor(mainW * scale);
+    this.offscreen.height = Math.floor(mainH * scale);
+    this.oCtx = this.offscreen.getContext('2d');
+    this.scale = scale;
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} mainCtx — 主画布 drawingContext
+   * @param {number} blurRadius — 模糊半径（px），默认 8
+   * @param {number} intensity — Bloom 强度 [0, 1]，默认 0.6
+   */
+  renderBloom(mainCtx, blurRadius = 8, intensity = 0.6) {
+    const w = this.offscreen.width;
+    const h = this.offscreen.height;
+
+    // Step 1 — 下采样：主画布内容绘制到离屏画布
+    this.oCtx.clearRect(0, 0, w, h);
+    this.oCtx.drawImage(mainCtx.canvas, 0, 0, w, h);
+
+    // Step 2 — 模糊低分辨率离屏画布（性能极高）
+    this.oCtx.filter = `blur(${blurRadius}px)`;
+    this.oCtx.drawImage(this.offscreen, 0, 0);
+    this.oCtx.filter = 'none';
+
+    // Step 3 — 加色叠加回主画布
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = 'lighter';
+    mainCtx.globalAlpha = intensity;
+    mainCtx.drawImage(
+      this.offscreen, 0, 0,
+      mainCtx.canvas.width, mainCtx.canvas.height
+    );
+    mainCtx.restore();
+  }
+}
+
+// 用法（在 draw() 末尾调用）：
+// const bloom = new CanvasBloomPipeline(CW, CH, 0.25);
+// function draw() {
+//   // ... 所有绘制 ...
+//   bloom.renderBloom(drawingContext, 8, 0.5);
+// }
+```
+
+**⚠️ p5.js 注意**：离屏画布不受 p5.js 变换栈（push/pop/translate）影响。`drawImage(mainCtx.canvas, ...)` 读取的是 p5.js Canvas 的原始像素，与 p5.js 当前变换无关。
+
+**性能说明**：`ctx.filter = 'blur(Npx)'` 是 Canvas2D 对 Kawase Blur / Gaussian Blur 的浏览器原生近似。真正的 Kawase Blur（GDC 2003, Masaki Kawase）和 Dual Filter Kawase Bloom（SIGGRAPH 2015, Marius Bjørge/ARM）是 WebGL Shader 级别算法——通过多次交替下采样（Downsample）与上采样（Upsample）以极少采样次数获得大半径平滑 Bloom。在 Canvas2D 中，`filter: blur()` 是性能最优的等效方案。如需 WebGL 级实现，参考 `GPU Gems 1 Chapter 25: Separable Gaussian Blur` 和 ARM 的 Dual Kawase Filter 开源代码。
+
+### 姿势 C：Bayer 抖动像素光晕（Frutiger Aero × 像素风专属）
+
+```javascript
+/**
+ * 姿势 C：Bayer 4×4 抖动像素光晕。
+ * 适用：pixel-bloom 像素艺术场景 — 像素玻璃高光扩散、像素萤火虫、像素魔法阵。
+ *
+ * 原理：光强不连续衰减 → 映射到 Bayer 矩阵阈值 → 点阵疏密模拟光强变化。
+ * 权威来源：NDS/GBA/Wii 像素界面光晕标准手法（硬件不支持浮点 Alpha 混合）。
+ *
+ * @param {CanvasRenderingContext2D} ctx — drawingContext
+ * @param {number} cx, cy — 光源中心像素坐标
+ * @param {number} radius — 光晕半径（PX 的整数倍）
+ * @param {string} colorHex — 光晕颜色 hex，如 '#ffffff'
+ * @param {number} PX — 像素单位，默认 2
+ */
+function drawPixelDitherGlow(ctx, cx, cy, radius, colorHex, PX = 2) {
+  ctx.save();
+  ctx.fillStyle = colorHex;
+
+  for (let dy = -radius; dy <= radius; dy += PX) {
+    for (let dx = -radius; dx <= radius; dx += PX) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+
+      // 距离归一化：0 = 中心（最亮），1 = 边缘（最暗）
+      const normDist = dist / radius;
+      // 光强阈值：中心 16，边缘 0（线性衰减）
+      const alphaThreshold = (1 - normDist) * 16;
+
+      // 像素在 Bayer 矩阵中的位置
+      const bx = Math.abs(Math.floor((cx + dx) / PX)) % 4;
+      const by = Math.abs(Math.floor((cy + dy) / PX)) % 4;
+      const matrixVal = BAYER_4X4[by][bx];
+
+      // 光强高于 Bayer 阈值 → 点亮此像素
+      if (alphaThreshold > matrixVal) {
+        ctx.fillRect(
+          Math.round(cx + dx),
+          Math.round(cy + dy),
+          PX, PX
+        );
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+// 用法：
+// drawPixelDitherGlow(drawingContext, firefly.x, firefly.y, 16, '#a0f0ff', 2);
+```
+
+---
+
+## 像素折射姿势库
+
+> 完整理论 + 决策树 + 权威文献见 `pixel-grid-system.md §VIII`。
+
+### 折射姿势 1：双重遮罩位移与透镜缩放（2D Canvas 黄金标准）
+
+```javascript
+/**
+ * 折射姿势 1：双重遮罩位移折射管线。
+ * 适用：玻璃瓶/水族箱/水滴透镜/水晶球——任何透明容器内部。
+ *
+ * 管线：画背景 → clip 玻璃形状 → translate+scale 偏移放大 → 重画背景 → tint 叠加
+ * 物理基础：斯涅尔定律 n₁sinθ₁ = n₂sinθ₂ → 2D 平替为 Offset + Scale
+ *
+ * @param {CanvasRenderingContext2D} ctx — drawingContext
+ * @param {Function} glassPathFunc — 定义玻璃轮廓路径的函数 (ctx) => { ctx.beginPath(); ... }
+ * @param {Function} drawBackgroundFunc — 绘制玻璃外部背景的函数 (ctx) => {}
+ * @param {Object} refractParams — { offsetX, offsetY, scaleFactor, tintColor }
+ */
+function renderRefractedGlass(ctx, glassPathFunc, drawBackgroundFunc, refractParams = {}) {
+  const {
+    offsetX = 2,       // X 轴折射偏移（正=右偏，模拟光线弯折）
+    offsetY = -2,      // Y 轴折射偏移（负=上偏）
+    scaleFactor = 1.04, // 透镜放大系数（>1 = 凸透镜放大，<1 = 凹透镜缩小）
+    tintColor = 'rgba(180, 240, 255, 0.15)' // 玻璃体块环境色
+  } = refractParams;
+
+  // Step 1 — 绘制玻璃外部世界（背景）
+  drawBackgroundFunc(ctx);
+
+  // Step 2 — 建立折射遮罩
+  ctx.save();
+  glassPathFunc(ctx);
+  ctx.clip(); // ★ 折射效果只发生在玻璃内部
+
+  // Step 3 — 位移 + 透镜放大 → 模拟光线弯折
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scaleFactor, scaleFactor);
+
+  // 在遮罩内重新绘制背景（此时背景被"弯曲/放大"了）
+  drawBackgroundFunc(ctx);
+  ctx.restore();
+
+  // Step 4 — 叠加玻璃体块环境色
+  ctx.fillStyle = tintColor;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// 用法（p5.js draw() 中）：
+// const dc = drawingContext;
+// renderRefractedGlass(dc,
+//   (ctx) => { ctx.beginPath(); ctx.ellipse(320, 400, 120, 200, 0, 0, Math.PI*2); },
+//   (ctx) => { /* 绘制海洋背景 + 远处波浪 */ },
+//   { offsetX: 2, offsetY: -1, scaleFactor: 1.04, tintColor: 'rgba(180,240,255,0.12)' }
+// );
+// // 然后在玻璃 clip 内绘制信纸、小船等瓶内物体...
+```
+
+### 折射姿势 2：像素网格色散折射（Chromatic Aberration Dither）
+
+```javascript
+/**
+ * 折射姿势 2：像素网格 RGB 三通道色散折射。
+ * 适用：像素风高精场景——玻璃/钻石边缘的彩虹色散、水晶分光。
+ *
+ * 物理基础：不同波长光在介质中折射角不同（色散）→ 2D 平替为 RGB 三通道不同偏移量。
+ * 权威来源：GPU Gems 1 Chapter 8 — Simulating Diffraction and Chromatic Aberration。
+ *
+ * @param {ImageData} imgData — 原始像素数据
+ * @param {number} width, height — 画布尺寸
+ * @param {Function} glassAreaFunc — (x, y) => boolean，判断是否在玻璃区域内
+ * @param {number} PX — 像素单位，默认 2
+ */
+function applyPixelChromaticRefraction(imgData, width, height, glassAreaFunc, PX = 2) {
+  const src = new Uint8ClampedArray(imgData.data);
+  const dst = imgData.data;
+
+  // RGB 三通道的不同折射偏移量（以 PX 为单位）
+  // 红色（长波）弯折少 → 偏移小；蓝色（短波）弯折多 → 偏移大
+  const rOffsetX = 1 * PX;   // 红通道：向右 1 PX
+  const rOffsetY = 0;
+  const bOffsetX = -1 * PX;  // 蓝通道：向左 1 PX
+  const bOffsetY = 0;
+
+  for (let y = 0; y < height; y += PX) {
+    for (let x = 0; x < width; x += PX) {
+      if (!glassAreaFunc(x, y)) continue; // 仅在玻璃区域内部执行
+
+      const i = (y * width + x) * 4;
+
+      // R 通道 — 偏移采样
+      const rx = constrain(x + rOffsetX, 0, width - 1);
+      const ry = constrain(y + rOffsetY, 0, height - 1);
+      dst[i] = src[(ry * width + rx) * 4];
+
+      // G 通道 — 保持原位
+      dst[i + 1] = src[i + 1];
+
+      // B 通道 — 反向偏移采样
+      const bx = constrain(x + bOffsetX, 0, width - 1);
+      const by = constrain(y + bOffsetY, 0, height - 1);
+      dst[i + 2] = src[(by * width + bx) * 4 + 2];
+
+      // Alpha 不变
+      // dst[i + 3] = src[i + 3];
+    }
+  }
+}
+
+// 用法（setup() 中一次性处理，非 draw() 每帧）：
+// let imgData = drawingContext.getImageData(0, 0, CW, CH);
+// applyPixelChromaticRefraction(imgData, CW, CH,
+//   (x, y) => { /* 判断是否在玻璃瓶路径内 */ }, 2);
+// drawingContext.putImageData(imgData, 0, 0);
+```
+
+### 折射姿势 3：Saint11 像素折射三大定律（逻辑断言 · 非代码）
+
+> 以下 3 条是生成像素场景时必须遵守的逻辑规则，注入 Prompt 作为生成约束。
+
+**定律 1：1px 平行错位法则**
+
+当线段或物体穿过玻璃/水面边界时：
+- ❌ 禁止：线段顺畅无缝穿过交界处
+- ✅ 强制：交界处像素线发生 1~2 PX 阶梯断裂（Discontinuity Shift）
+- 公式：`glassX = outsideX + sign(surfaceNormalX) × PX`
+- 交界点填充为 1 PX 亮白高光点
+
+```
+【示意图 — 穿过水面的木棍】
+水面以上: ████████████
+───────────────── 水面 (1px 断线)
+水面以下:   ████████████  ← 向右偏移 1 PX，且有 1px 白点标记交界
+```
+
+**定律 2：边缘压缩与中心膨胀**
+
+圆球/圆柱玻璃的 Fisheye 畸变：
+- 中心区域像素 ≥ 2 PX 宽（被透镜放大）
+- 边缘区域像素 ≤ 1 PX 宽（被曲面压缩）
+- 实现方式：姿态 1 的 `scaleFactor` 配合 `translate` 的位移量随距中心距离非线性变化
+
+**定律 3：全反射边界**
+
+临界角处的像素不显示背景内容：
+- 显示为 1 PX 的反色光线（浅色底 = 深色边，深色底 = 白色边）
+- 或显示为 1 PX 的深色暗边（菲涅尔全内反射的像素化表达）
+- 此定律与 `design-principles.md §四` 的菲涅尔边缘描边一致
+
+**自检清单**：
+- [ ] 穿过玻璃边界的线条是否发生了 1 PX 断裂？
+- [ ] 玻璃中心的内容是否比边缘的内容略大？
+- [ ] 玻璃最边缘是否有 1 PX 全反射暗边？
+```

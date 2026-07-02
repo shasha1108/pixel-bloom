@@ -502,7 +502,7 @@ function drawSeafloorWithCaustics(seafloorY, horizonY, time, px, choppiness) {
 >
 > **触发条件**：场景含"河流/溪流/运河/水渠"——水体呈带状、从地平线延伸到近景。不触发：海/湖/池塘（→ §一~§八 海面模式）。
 
-### 9.1 核心差异：海面 vs 河流
+### 10.1 核心差异：海面 vs 河流
 
 | 维度 | 海面模式 | 河流模式 |
 |------|---------|---------|
@@ -511,7 +511,7 @@ function drawSeafloorWithCaustics(seafloorY, horizonY, time, px, choppiness) {
 | 透视 | painter's algorithm 远→近覆盖 | `pow(t, 2)` 非线性收窄 |
 | 边界 | 海面覆盖整个画布下半 | 河流有明确的左右边界 |
 
-### 9.2 河流边界函数
+### 10.2 河流边界函数
 
 ```javascript
 function getRiver(y, horizon) {
@@ -527,7 +527,7 @@ function getRiver(y, horizon) {
 
 **反面教材**：用线性 `t` 替代 `pow(t,2)` → 河流近大远小的透视感消失 → 像"等宽直筒"。
 
-### 9.3 河流填充——单次 `beginShape()`
+### 10.3 河流填充——单次 `beginShape()`
 
 ```javascript
 fill(riverColor);
@@ -545,7 +545,7 @@ endShape(CLOSE);
 
 **性能差距**：逐列 `rect()` ~960 次 draw call → 单次 `beginShape()` 1 draw call（~500×）。
 
-### 9.4 河面波纹——水平光带
+### 10.4 河面波纹——水平光带
 
 ```javascript
 // 水平波纹——随时间从远漂到近
@@ -563,7 +563,7 @@ for (let i = 0; i < 6; i++) {
 
 **为什么是水平光带**：河面波纹是光线在水面的反射——物理上反射光带平行于河岸线。水平绘制比斜向更自然。
 
-### 9.5 稻田/植被的河流避让
+### 10.5 稻田/植被的河流避让
 
 ```javascript
 // 在稻田/草地绘制循环中——跳过河流区域
@@ -571,7 +571,7 @@ let r = getRiver(y, horizon);
 if (r && abs(x - r.cx) < r.w / 2 + PX * 2) continue; // 留 2px 缓冲区
 ```
 
-### 9.6 反模式（河流专属）
+### 10.6 反模式（河流专属）
 
 | # | 反模式 | 级别 | 表现 | 修复 |
 |---|--------|------|------|------|
